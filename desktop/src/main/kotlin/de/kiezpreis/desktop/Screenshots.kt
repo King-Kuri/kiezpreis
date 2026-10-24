@@ -46,6 +46,17 @@ fun main(args: Array<String>) {
             c.user.setPostalCode("10245")
             c.query = "Monster Ultra White"; c.toggleNearby(); c.selectTab(Tab.SEARCH)
         },
+        "17_import_portal" to { c ->
+            c.selectTab(Tab.SETTINGS); c.sourcesScreenOpen = true
+            c.openImportSite(de.kiezpreis.core.importer.ImportSites.portals.first())
+            c.browser!!.onCaptured("""{"url":"https://www.aktionspreis.de/test","domCards":[
+              {"title":"Testprodukt Butter 250 g","price":"1,59 €","oldPrice":"2,19 €","retailer":"PENNY"},
+              {"title":"Testprodukt Vollmilch 1 l","price":"0,95 €","retailer":"ALDI SÜD"},
+              {"title":"Testprodukt Bananen 1 kg","price":"1,29 €","note":"REWE Angebot"},
+              {"title":"Testprodukt Eier","price":"2,49 €","note":"Netto"}]}""")
+            val until = System.currentTimeMillis() + 5_000
+            while (c.importDraft == null && System.currentTimeMillis() < until) Thread.sleep(20)
+        },
         "14_import_review" to { c -> c.selectTab(Tab.SETTINGS); c.sourcesScreenOpen = true; capture(c) },
         "15_sources_after_import" to { c ->
             c.selectTab(Tab.SETTINGS); c.sourcesScreenOpen = true; capture(c)
@@ -92,7 +103,7 @@ private fun seedUserData(c: AppController) {
  * Only the screenshot uses it; nothing of it reaches the app.
  */
 private fun capture(c: AppController) {
-    c.openRetailerBrowser(de.kiezpreis.core.model.Retailer.REWE)
+    c.openImportSite(de.kiezpreis.core.importer.ImportSites.retailerSites.first { it.retailer == de.kiezpreis.core.model.Retailer.REWE })
     val fixture = """
         {"url":"https://www.rewe.de/angebote/berlin/0000/testmarkt/","title":"Testseite",
          "embeddedJson":[${'"'}{\"market\":{\"zipCode\":\"13591\"},\"offers\":[

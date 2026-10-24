@@ -22,6 +22,8 @@ import de.kiezpreis.core.data.SourceCatalog
 import de.kiezpreis.core.importer.CapturedPage
 import de.kiezpreis.core.importer.ExtractedOffer
 import de.kiezpreis.core.importer.ImportDraft
+import de.kiezpreis.core.importer.ImportSite
+import de.kiezpreis.core.importer.WebImportBatch
 import de.kiezpreis.core.importer.MarketChoice
 import de.kiezpreis.core.importer.WebImport
 import de.kiezpreis.core.importer.WebImportStore
@@ -157,9 +159,9 @@ class AppController(
         if (enabled) refresh(force = false)
     }
 
-    fun openRetailerBrowser(retailer: Retailer) {
+    fun openImportSite(site: ImportSite) {
         importMessage = null
-        browser = BrowserState(retailer, retailer.website, ::onCaptured)
+        browser = BrowserState(site, ::onCaptured)
     }
 
     fun closeBrowser() {
@@ -185,16 +187,27 @@ class AppController(
         val draft = importDraft ?: return "Nichts zu übernehmen"
         val batch = WebImport.toBatch(draft, selected, market, now()).getOrElse { return it.message ?: "Übernahme nicht möglich" }
         imports.save(batch)
-        importMessage = "${Labels.count(batch.offers.size, "Preis", "Preise")} von ${batch.retailer.displayName} übernommen" +
-            (batch.store?.let { " · ${it.name}" } ?: " · ${WebImport.chainArea(batch.retailer) ?: "Gebiet unbekannt"}")
+        importMessage = "${Labels.count(batch.offers.size, "Preis", "Preise")} von ${draft.site?.name} übernommen" + " · " + batchPlace(batch)
         closeBrowser()
         sourcesScreenOpen = true
         scope.launch { offers.refresh(force = true, context = FetchContext(now(), user.prefs.value.postalCode), only = setOf(WebImport.SOURCE_ID)) }
         return null
     }
 
-    fun removeImport(retailer: Retailer) {
-        imports.remove(retailer)
+    /** Where an import's prices apply, for one-line summaries. */
+    fun batchPlace(batch: WebImportBatch): String {
+        val store = batch.store
+        val retailer = batch.retailer
+        return when {
+            store != null -> "${store.name} (${store.postalCode})"
+            batch.areaPostalCode != null -> "Umgebung ${batch.areaPostalCode}"
+            retailer != null -> WebImport.chainArea(retailer) ?: "Gebiet unbekannt"
+            else -> "Gebiet unbekannt"
+        }
+    }
+
+    fun removeImport(siteKey: String) {
+        imports.remove(siteKey)
         importMessage = null
         scope.launch { offers.refresh(force = true, context = FetchContext(now(), null), only = setOf(WebImport.SOURCE_ID)) }
     }

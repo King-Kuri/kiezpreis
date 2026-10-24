@@ -69,6 +69,7 @@ object CaptureScripts {
           var OLD = /(old|strike|regular|before|former|uvp|statt|crossed|was-price|original)/i;
           var BASE = /(base|unit|grammage|grundpreis|per-unit|perunit|comparison)/i;
           var SIZE = /(amount|quantity|size|packag|weight|content|subtitle|grammage)/i;
+          var RETAILER = '[class*="retailer" i],[class*="merchant" i],[class*="shop" i],[class*="store" i],[class*="haendler" i],[class*="chain" i],[class*="logo" i]';
           var TITLE = 'h1,h2,h3,h4,h5,[class*="title" i],[class*="name" i],[itemprop="name"],[data-testid*="title" i]';
           var out = {
             url: location.href, title: document.title,
@@ -115,12 +116,22 @@ object CaptureScripts {
               if (!size && el.children.length === 0 && SIZE.test(cls(el)) && /\d/.test(text(el)) && text(el).length < 60) size = text(el);
             });
             var titleEl = card.querySelector(TITLE);
+            var retailer = null;
+            card.querySelectorAll(RETAILER).forEach(function (el) {
+              if (retailer) return;
+              var t = el.tagName === 'IMG' ? el.alt : (text(el) || (el.querySelector('img') && el.querySelector('img').alt) || '');
+              if (t && t.length < 60) retailer = t;
+            });
+            if (!retailer) card.querySelectorAll('img[alt]').forEach(function (img) {
+              if (!retailer && /aldi|lidl|rewe|edeka|kaufland|penny|netto/i.test(img.alt)) retailer = img.alt;
+            });
             var img = card.querySelector('img');
             out.domCards.push({
               title: text(titleEl).slice(0, 200),
               price: Array.from(current)[0],
               oldPrice: old, basePrice: base, size: size,
               note: text(card).slice(0, 300),
+              retailer: retailer,
               image: img && img.src && img.src.indexOf('https://') === 0 ? img.src : null
             });
           }

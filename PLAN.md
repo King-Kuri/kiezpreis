@@ -29,6 +29,10 @@ Stand: 24.10.2026. ✅ fertig und getestet · 🟡 implementiert, Prüfung offen
 * ✅ Gebietsmodell, Bestpreis ohne Einzelmärkte, Abschnitt „Einzelne Märkte“, Filter „Nur meine Gegend“
 * ✅ Open Prices deutschlandweit, ALDI Nord und ALDI Süd getrennt, Übernahme mit jeder deutschen PLZ
 
+## Angebotsportale (D-20)
+* 🟡 aktionspreis.de per Übernahme, Händler je Angebot; mit Testdaten geprüft, auf der echten Seite noch nicht
+* ⬜ Händlerseiten, die im In-App-Browser nicht laden: Details von Noel abwarten
+
 ## Phase 4 – Erweiterte Funktionen
 * ✅ Filter, Sortierung, Merkliste, PLZ („Nur meine Gegend“), Händlerpräferenzen, Offline-Cache
 * ⬜ Preisalarme mit WorkManager (nur mit regelmäßig prüfbarer Quelle, siehe ARCHITECTURE.md)

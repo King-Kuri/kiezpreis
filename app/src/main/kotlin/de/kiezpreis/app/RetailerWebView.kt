@@ -21,7 +21,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
-import de.kiezpreis.core.importer.WebImport
 import de.kiezpreis.ui.BrowserState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.drop
@@ -33,9 +32,9 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 
 /**
- * The retailer's own website, shown as is. The user navigates, picks a market and answers any
+ * The retailer's or portal's own website, shown as is. The user navigates, picks a market and answers any
  * consent or security prompt themselves. Kiezpreis reads the page only when the user taps
- * "Angebote übernehmen", and only top-level pages of that retailer's domain are opened.
+ * "Angebote übernehmen", and only top-level pages of that site's domain are opened.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -56,7 +55,7 @@ fun RetailerWebView(state: BrowserState, modifier: Modifier) {
 
             val recorderAtStart = WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)
             if (recorderAtStart) {
-                val domain = state.retailer.website.let { java.net.URI(it).host.removePrefix("www.").removePrefix("filiale.") }
+                val domain = state.site.domain
                 WebViewCompat.addDocumentStartJavaScript(this, CaptureScripts.RECORDER, setOf("https://$domain", "https://*.$domain"))
             }
 
@@ -65,7 +64,7 @@ fun RetailerWebView(state: BrowserState, modifier: Modifier) {
                     if (!request.isForMainFrame) return false
                     val url = request.url
                     val host = url.host.orEmpty()
-                    if (url.scheme == "https" && WebImport.isAllowedHost(state.retailer, host)) return false
+                    if (url.scheme == "https" && state.site.allows(host)) return false
                     state.blockedHost = host.ifEmpty { url.scheme }
                     return true
                 }

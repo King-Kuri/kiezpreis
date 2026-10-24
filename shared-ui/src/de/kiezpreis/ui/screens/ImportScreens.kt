@@ -62,6 +62,7 @@ import de.kiezpreis.core.importer.MarketChoice
 import de.kiezpreis.core.logic.ValidityRules
 import de.kiezpreis.core.model.Retailer
 import de.kiezpreis.core.model.Validity
+import de.kiezpreis.core.importer.ImportSites
 import de.kiezpreis.core.importer.WebImport
 import de.kiezpreis.core.region.PostalCodes
 import de.kiezpreis.ui.AppController
@@ -121,7 +122,16 @@ fun RetailerImportCard(controller: AppController, today: LocalDate, modifier: Mo
                 Text("Händlerseite öffnen", style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.height(6.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Retailer.supermarkets.forEach { r -> KChip(r.shortName, icon = Icons.Rounded.OpenInBrowser) { controller.openRetailerBrowser(r) } }
+                    ImportSites.retailerSites.forEach { s -> KChip(s.retailer!!.shortName, icon = Icons.Rounded.OpenInBrowser) { controller.openImportSite(s) } }
+                }
+                Spacer(Modifier.height(12.dp))
+                Text("Angebotsportal öffnen (viele Händler auf einer Seite)", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.height(6.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ImportSites.portals.forEach { s -> KChip(s.name, icon = Icons.Rounded.OpenInBrowser) { controller.openImportSite(s) } }
+                }
+                ImportSites.portals.mapNotNull { it.note }.forEach {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = c.textTertiary, modifier = Modifier.padding(top = 6.dp))
                 }
             } else {
                 Text("Nur in der Android-App verfügbar.", style = MaterialTheme.typography.labelMedium, color = c.textTertiary)
@@ -132,16 +142,18 @@ fun RetailerImportCard(controller: AppController, today: LocalDate, modifier: Mo
                 Text("Übernommen", style = MaterialTheme.typography.labelMedium)
                 batches.sortedByDescending { it.importedAt }.forEach { b ->
                     Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        RetailerMark(b.retailer, size = 28.dp)
+                        val site = ImportSites.byId(b.siteKey)
+                        if (b.retailer != null) RetailerMark(b.retailer!!, size = 28.dp)
+                        else Icon(Icons.Rounded.OpenInBrowser, null, tint = c.accent, modifier = Modifier.size(28.dp))
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(b.store?.let { "${it.name} · ${it.postalCode}" } ?: "${b.retailer.displayName} · ${WebImport.chainArea(b.retailer) ?: "Gebiet unbekannt"}",
+                            Text("${site?.name ?: b.siteKey} · ${controller.batchPlace(b)}",
                                 style = MaterialTheme.typography.bodyMedium, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text("${Labels.count(b.offers.size, "Preis", "Preise")} · ${Labels.timestamp(b.importedAt, today)}",
                                 style = MaterialTheme.typography.labelMedium)
                         }
                         Text("Entfernen", color = c.accent, style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.clickable(role = Role.Button) { controller.removeImport(b.retailer) }.padding(8.dp))
+                            modifier = Modifier.clickable(role = Role.Button) { controller.removeImport(b.siteKey) }.padding(8.dp))
                     }
                 }
             }
@@ -165,7 +177,7 @@ fun BrowserScreen(controller: AppController, state: BrowserState, padding: Paddi
             GlassIconButton(Icons.Rounded.Close, "Schließen") { controller.closeBrowser() }
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(state.retailer.displayName, style = MaterialTheme.typography.titleSmall)
+                Text(state.site.name, style = MaterialTheme.typography.titleSmall)
                 Text(hostOf(state.currentUrl), style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             GlassIconButton(Icons.Rounded.Refresh, "Neu laden") { state.reload() }
@@ -178,7 +190,7 @@ fun BrowserScreen(controller: AppController, state: BrowserState, padding: Paddi
         }
 
         Column(Modifier.fillMaxWidth().background(c.glassSolid).padding(horizontal = 16.dp, vertical = 10.dp)) {
-            val note = state.error ?: state.blockedHost?.let { "Link zu $it nicht geöffnet: Kiezpreis bleibt auf der Seite von ${state.retailer.shortName}." }
+            val note = state.error ?: state.blockedHost?.let { "Link zu $it nicht geöffnet: Kiezpreis bleibt auf ${state.site.domain}." }
             Text(
                 note ?: "Wähle auf der Seite deinen Markt und öffne dessen Angebote. Tippe dann auf „Angebote übernehmen“. Du siehst vor dem Speichern, was erkannt wurde.",
                 style = MaterialTheme.typography.bodySmall, color = if (note != null) c.caution else c.textSecondary,
@@ -211,7 +223,8 @@ fun ImportReviewContent(controller: AppController, draft: ImportDraft, padding: 
     var error by remember(draft) { mutableStateOf<String?>(null) }
     val chosen = draft.items.filterIndexed { i, _ -> selected.getOrElse(i) { false } }
     val postalValid = PostalCodes.isValid(postal)
-    val canSave = draft.retailer != null && chosen.isNotEmpty() && (!withMarket || postalValid)
+    val portal = draft.site?.isPortal == true
+    val canSave = draft.site != null && chosen.isNotEmpty() && (!withMarket || postalValid)
     val chainArea = draft.retailer?.let(WebImport::chainArea)
 
     Box(Modifier.fillMaxSize()) {
@@ -229,13 +242,14 @@ fun ImportReviewContent(controller: AppController, draft: ImportDraft, padding: 
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "${Labels.count(draft.items.size, "Preis", "Preise")} auf ${draft.host}. Vergleiche ein paar davon mit der Seite. " +
-                            "Stimmt etwas nicht, nimm den Haken raus oder übernimm gar nichts.",
+                            "Stimmt etwas nicht, nimm den Haken raus oder übernimm gar nichts." +
+                            if (draft.unassigned > 0) " ${Labels.count(draft.unassigned, "weiterer Preis ist", "weitere Preise sind")} keinem Händler eindeutig zuzuordnen und fehlen hier." else "",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
             when {
-                draft.retailer == null -> item {
+                draft.site == null -> item {
                     StateMessage(Icons.Rounded.SearchOff, "Kein unterstützter Händler",
                         "${draft.host} gehört zu keinem der Händler, die Kiezpreis kennt. Von dieser Seite wird nichts übernommen.")
                 }
@@ -249,7 +263,7 @@ fun ImportReviewContent(controller: AppController, draft: ImportDraft, padding: 
                 else -> {
                     item {
                         MarketCard(
-                            draft, withMarket, postal, marketName, postalValid, chainArea,
+                            draft, withMarket, postal, marketName, postalValid, chainArea, portal,
                             onWithMarket = { withMarket = it; error = null },
                             onPostal = { postal = it.filter(Char::isDigit).take(5); error = null },
                             onName = { marketName = it.take(60) },
@@ -266,13 +280,13 @@ fun ImportReviewContent(controller: AppController, draft: ImportDraft, padding: 
                         }
                     }
                     itemsIndexed(draft.items) { i, item ->
-                        ExtractedRow(item, selected.getOrElse(i) { false }, today, Modifier.padding(horizontal = 16.dp)) { selected[i] = !selected[i] }
+                        ExtractedRow(item, selected.getOrElse(i) { false }, portal, Modifier.padding(horizontal = 16.dp)) { selected[i] = !selected[i] }
                     }
                 }
             }
         }
 
-        if (draft.retailer != null && draft.items.isNotEmpty()) {
+        if (draft.site != null && draft.items.isNotEmpty()) {
             GlassSurface(
                 Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = padding.calculateBottomPadding()).fillMaxWidth(),
                 blur = true,
@@ -281,6 +295,7 @@ fun ImportReviewContent(controller: AppController, draft: ImportDraft, padding: 
                     Text(
                         error ?: when {
                             withMarket && !postalValid -> "Gib die Postleitzahl des Markts an."
+                            withMarket && portal -> "Wird als Preis für die Umgebung von $postal gespeichert, wie ${draft.site?.name} ihn zeigt."
                             withMarket -> "Wird als Preis dieses einen Markts gespeichert (${PostalCodes.areaLabel(postal)})."
                             chainArea != null -> "Wird als Preis im $chainArea gespeichert."
                             else -> "Wird mit „Gebiet unbekannt“ gespeichert."
@@ -306,6 +321,7 @@ private fun MarketCard(
     name: String,
     postalValid: Boolean,
     chainArea: String?,
+    portal: Boolean,
     onWithMarket: (Boolean) -> Unit,
     onPostal: (String) -> Unit,
     onName: (String) -> Unit,
@@ -317,11 +333,11 @@ private fun MarketCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Store, null, tint = c.accent, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Für welchen Markt gelten die Preise?", style = MaterialTheme.typography.titleSmall)
+                Text(if (portal) "Für welche Gegend hast du gesucht?" else "Für welchen Markt gelten die Preise?", style = MaterialTheme.typography.titleSmall)
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                KChip("Ein bestimmter Markt", selected = withMarket) { onWithMarket(true) }
+                KChip(if (portal) "PLZ angeben" else "Ein bestimmter Markt", selected = withMarket) { onWithMarket(true) }
                 KChip(if (chainArea != null) "Ganzes Gebiet" else "Weiß ich nicht", selected = !withMarket) { onWithMarket(false) }
             }
             Spacer(Modifier.height(10.dp))
@@ -335,9 +351,14 @@ private fun MarketCard(
                     Text("Von der Seite übernommen. Bitte prüfen.", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 6.dp))
                 }
                 Spacer(Modifier.height(8.dp))
-                InputField(name, "Name des Markts (optional)", "Name des Markts", KeyboardType.Text, onName)
-                Spacer(Modifier.height(8.dp))
-                Text("Die Preise gelten dann nur für diesen Markt. Andere Filialen können abweichen.", style = MaterialTheme.typography.bodySmall)
+                if (portal) {
+                    Text("Die PLZ, die du auf dem Portal eingegeben hast. Die Preise gelten dann als Preise dieser Gegend, nicht eines bestimmten Markts.",
+                        style = MaterialTheme.typography.bodySmall)
+                } else {
+                    InputField(name, "Name des Markts (optional)", "Name des Markts", KeyboardType.Text, onName)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Die Preise gelten dann nur für diesen Markt. Andere Filialen können abweichen.", style = MaterialTheme.typography.bodySmall)
+                }
             } else {
                 Text(
                     if (chainArea != null) "Die Preise gelten dann im $chainArea, wie es die Seite von ${draft.retailer?.shortName} zeigt."
@@ -367,7 +388,7 @@ private fun InputField(value: String, placeholder: String, description: String, 
 }
 
 @Composable
-private fun ExtractedRow(item: ExtractedOffer, checked: Boolean, today: LocalDate, modifier: Modifier, onToggle: () -> Unit) {
+private fun ExtractedRow(item: ExtractedOffer, checked: Boolean, showRetailer: Boolean, modifier: Modifier, onToggle: () -> Unit) {
     val c = Kiez.colors
     FrostCard(modifier.fillMaxWidth()) {
         Row(
@@ -380,6 +401,10 @@ private fun ExtractedRow(item: ExtractedOffer, checked: Boolean, today: LocalDat
             Icon(if (checked) Icons.Rounded.CheckBox else Icons.Rounded.CheckBoxOutlineBlank, null,
                 tint = if (checked) c.accent else c.textTertiary, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(12.dp))
+            if (showRetailer && item.retailer != null) {
+                RetailerMark(item.retailer!!, size = 30.dp)
+                Spacer(Modifier.width(10.dp))
+            }
             Column(Modifier.weight(1f)) {
                 item.brand?.let { Text(it.uppercase(), style = MaterialTheme.typography.labelSmall, color = c.textTertiary) }
                 Text(item.title, style = MaterialTheme.typography.bodyMedium, color = c.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)

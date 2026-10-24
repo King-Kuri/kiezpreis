@@ -31,29 +31,43 @@ import java.security.MessageDigest
 data class ImportDraft(
     val pageUrl: String,
     val host: String,
-    val retailer: Retailer?,
+    /** The site the page belongs to; null for a site Kiezpreis does not support. */
+    val site: ImportSite?,
+    /** Items with a known chain. On a retailer site that is the site's retailer. */
     val items: List<ExtractedOffer>,
-    /** Postal codes the page itself mentions as market location. Only used to prefill. */
+    /** Portal items whose chain could not be told unambiguously; they are not offered for import. */
+    val unassigned: Int,
+    /** Postal codes the page itself mentions as location. Only used to prefill. */
     val detectedPostalCodes: List<String>,
     val capturedAt: Long,
-)
+) {
+    val retailer: Retailer? get() = site?.retailer
+}
 
-/** Which market the user says the prices belong to. */
+/** Where the user says the prices belong. */
 sealed interface MarketChoice {
-    /** The user does not know or the page shows chain-wide prices. */
+    /** The user does not know, or the page shows chain-wide prices. */
     data object Unknown : MarketChoice
+    /** A retailer site: one market. A portal: the area the user searched for on the portal. */
     data class Market(val postalCode: String, val name: String?) : MarketChoice
 }
 
-/** Prices the user took over from one retailer page. */
+/** Prices the user took over from one page. */
 @Serializable
 data class WebImportBatch(
-    val retailer: Retailer,
+    /** Set for retailer sites (also in batches saved before portals existed). */
+    val retailer: Retailer? = null,
     val pageUrl: String,
     val store: Store? = null,
     val importedAt: Long,
     val offers: List<Offer>,
-)
+    val siteId: String? = null,
+    /** For portal imports: the area the user searched for. */
+    val areaPostalCode: String? = null,
+) {
+    /** One batch per site and market; also the key for removing it. */
+    val siteKey: String get() = siteId ?: retailer?.name ?: "unknown"
+}
 
 object WebImport {
 
@@ -62,65 +76,56 @@ object WebImport {
     /** Imports without an end date are no longer shown after this many days. */
     const val UNDATED_MAX_AGE_DAYS = 7L
 
-    private val hosts = mapOf(
-        "aldi-nord.de" to Retailer.ALDI_NORD,
-        "aldi-sued.de" to Retailer.ALDI_SUED,
-        "lidl.de" to Retailer.LIDL,
-        "rewe.de" to Retailer.REWE,
-        "edeka.de" to Retailer.EDEKA,
-        "kaufland.de" to Retailer.KAUFLAND,
-        "penny.de" to Retailer.PENNY,
-        "netto-online.de" to Retailer.NETTO_MD,
-    )
+    fun retailerForHost(host: String): Retailer? = ImportSites.forHost(host)?.retailer
 
-    fun retailerForHost(host: String): Retailer? {
-        val h = host.lowercase().trimEnd('.')
-        return hosts.entries.firstOrNull { (domain, _) -> h == domain || h.endsWith(".$domain") }?.value
+    fun draft(page: CapturedPage, now: Long): ImportDraft {
+        val site = ImportSites.forHost(page.host)
+        val extracted = OfferExtractor.extract(page)
+        val resolved = extracted.map { e -> e.copy(retailer = site?.retailer ?: RetailerNames.find(e.retailerText)) }
+        return ImportDraft(
+            pageUrl = page.url,
+            host = page.host,
+            site = site,
+            items = resolved.filter { it.retailer != null },
+            unassigned = resolved.count { it.retailer == null },
+            detectedPostalCodes = detectPostalCodes(page),
+            capturedAt = now,
+        )
     }
 
-    /** Whether the in-app browser may navigate to [host] while showing [retailer]'s site. */
-    fun isAllowedHost(retailer: Retailer, host: String): Boolean = retailerForHost(host) == retailer
-
-    fun draft(page: CapturedPage, now: Long): ImportDraft = ImportDraft(
-        pageUrl = page.url,
-        host = page.host,
-        retailer = retailerForHost(page.host),
-        items = OfferExtractor.extract(page),
-        detectedPostalCodes = detectPostalCodes(page),
-        capturedAt = now,
-    )
-
     /**
-     * Turns confirmed items into offers. Fails when the page is not a known retailer or the
+     * Turns confirmed items into offers. Fails when the page is not a supported site or the
      * postal code is invalid; nothing is stored in that case.
      */
     fun toBatch(draft: ImportDraft, selected: List<ExtractedOffer>, market: MarketChoice, now: Long): Result<WebImportBatch> {
-        val retailer = draft.retailer ?: return Result.failure(IllegalArgumentException("Seite gehört zu keinem unterstützten Händler"))
-        val store = when (market) {
-            MarketChoice.Unknown -> null
-            is MarketChoice.Market -> {
-                if (!PostalCodes.isValid(market.postalCode)) {
-                    return Result.failure(IllegalArgumentException("${market.postalCode} ist keine gültige Postleitzahl"))
-                }
+        val site = draft.site ?: return Result.failure(IllegalArgumentException("Seite wird nicht unterstützt"))
+        if (market is MarketChoice.Market && !PostalCodes.isValid(market.postalCode)) {
+            return Result.failure(IllegalArgumentException("${market.postalCode} ist keine gültige Postleitzahl"))
+        }
+        val postal = (market as? MarketChoice.Market)?.postalCode
+        val store = site.retailer?.let { r ->
+            (market as? MarketChoice.Market)?.let { m ->
                 Store(
-                    id = "${retailer.name.lowercase()}_${market.postalCode}_${hash(market.name.orEmpty()).take(6)}",
-                    retailer = retailer,
-                    name = market.name?.trim()?.takeIf { it.isNotEmpty() } ?: "${retailer.shortName} ${market.postalCode}",
-                    postalCode = market.postalCode,
-                    city = if (Berlin.containsPostalCode(market.postalCode)) "Berlin" else null,
+                    id = "${r.name.lowercase()}_${m.postalCode}_${hash(m.name.orEmpty()).take(6)}",
+                    retailer = r,
+                    name = m.name?.trim()?.takeIf { it.isNotEmpty() } ?: "${r.shortName} ${m.postalCode}",
+                    postalCode = m.postalCode,
+                    city = if (Berlin.containsPostalCode(m.postalCode)) "Berlin" else null,
                 )
             }
         }
-        // Without a market, ALDI prices still belong to one of the two ALDI areas; other chains stay unknown.
-        val area = if (store == null) chainArea(retailer) else null
-        val availability = when {
-            store != null -> Coverage.STORE
-            area != null -> Coverage.REGIONAL
-            else -> Coverage.UNKNOWN
-        }
-        val offers = selected.map { e ->
+        val offers = selected.mapNotNull { e ->
+            val retailer = e.retailer ?: site.retailer ?: return@mapNotNull null
+            // Retailer site: one market, or the chain's own area (ALDI), or unknown.
+            // Portal: the prices the portal showed for the searched area.
+            val (coverage, area) = when {
+                store != null -> Coverage.STORE to null
+                site.isPortal && postal != null -> Coverage.REGIONAL to "Umgebung ${PostalCodes.areaLabel(postal)} (laut ${site.name})"
+                chainArea(retailer) != null -> Coverage.REGIONAL to chainArea(retailer)
+                else -> Coverage.UNKNOWN to null
+            }
             Offer(
-                id = "web_${retailer.name.lowercase()}_${hash(listOf(e.title, e.price.value, store?.id, e.validFrom).joinToString("|")).take(16)}",
+                id = "web_${retailer.name.lowercase()}_${hash(listOf(e.title, e.price.value, store?.id, postal, e.validFrom).joinToString("|")).take(16)}",
                 sourceId = SOURCE_ID,
                 retailer = retailer,
                 title = e.title,
@@ -132,7 +137,7 @@ object WebImport {
                 referencePrice = e.referencePrice,
                 statedBasePrice = e.basePriceText,
                 validity = Validity(e.validFrom, e.validTo),
-                availability = availability,
+                availability = coverage,
                 area = area,
                 stores = listOfNotNull(store),
                 conditions = e.conditions.toList(),
@@ -142,7 +147,7 @@ object WebImport {
                 fetchedAt = now,
             )
         }
-        return Result.success(WebImportBatch(retailer, draft.pageUrl, store, now, offers))
+        return Result.success(WebImportBatch(site.retailer, draft.pageUrl, store, now, offers, site.id, if (site.isPortal) postal else null))
     }
 
     fun chainArea(retailer: Retailer): String? = when (retailer) {
@@ -189,12 +194,14 @@ class WebImportStore(private val store: JsonFileStore) {
 
     @Synchronized
     fun save(batch: WebImportBatch) {
-        val rest = _batches.value.filterNot { it.retailer == batch.retailer && it.store?.id == batch.store?.id }
+        val rest = _batches.value.filterNot {
+            it.siteKey == batch.siteKey && it.store?.id == batch.store?.id && it.areaPostalCode == batch.areaPostalCode
+        }
         write(rest + batch)
     }
 
     @Synchronized
-    fun remove(retailer: Retailer) = write(_batches.value.filterNot { it.retailer == retailer })
+    fun remove(siteKey: String) = write(_batches.value.filterNot { it.siteKey == siteKey })
 
     @Synchronized
     fun clear() = write(emptyList())

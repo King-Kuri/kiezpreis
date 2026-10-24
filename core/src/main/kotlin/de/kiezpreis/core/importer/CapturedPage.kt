@@ -44,4 +44,6 @@ data class DomCard(
     val brand: String? = null,
     val note: String? = null,
     val image: String? = null,
+    /** Chain name or logo text found in the tile, on portals. */
+    val retailer: String? = null,
 )

@@ -65,6 +65,18 @@ gewünschten Prospektangebote, sind aber teils durch Bot-Schutz gesperrt oder pe
    auf üblichen Seitenformaten (schema.org, Next.js-Daten, JSON-Antworten, Produktkacheln) und muss auf
    dem Gerät gegen die echten Seiten erprobt werden.
 
+## Angebotsportale (seit 0.4)
+
+| Portal | Abdeckung | Bedingungen | Entscheidung |
+|---|---|---|---|
+| aktionspreis.de (redprice, Dresden) | 87 Ketten, Angebote nach PLZ | AGB (Stand 29.09.2015) Ziff. 3.6: nur private Nutzung, Kopieren und Weitergabe untersagt; weitere Nutzung nur mit schriftlicher Zustimmung. Keine Schnittstelle. | **Übernahme in der App** (Noel, 24.10.2026): Person öffnet die Seite selbst, Daten bleiben auf dem Gerät |
+| kaufDA/meinprospekt (Bonial), marktguru, Offerista | bundesweit | nur Geschäftskunden-Verträge; inoffizielle Bibliotheken nutzen aus Apps ausgelesene Schlüssel | abgelehnt |
+| discounto.de, prospektangebote.de | bundesweit | nicht geprüft | offen, erst nach Prüfung der Bedingungen |
+
+Auf Portalen wird der Händler je Angebot gelesen (Feld, Logo-Alternativtext oder Kacheltext). Nennt ein
+Angebot keinen oder mehrere Händler, oder nur „Netto“ (zwei Ketten), wird es nicht übernommen. Gibt die
+Person die gesuchte PLZ an, gilt der Preis als „Umgebung <PLZ> (laut Portal)“, sonst „Gebiet unbekannt“.
+
 ## Gebiet (seit 0.3)
 
 Die App zeigt alle Angebote und nennt bei jedem, wo es gilt: bundesweit, in einem Gebiet (z. B.

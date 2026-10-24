@@ -53,7 +53,8 @@ fun RetailerMark(retailer: Retailer, size: Dp = 36.dp, modifier: Modifier = Modi
         contentAlignment = Alignment.Center,
     ) {
         val text = when (retailer) {
-            Retailer.ALDI_NORD -> "ALDI"
+            Retailer.ALDI_NORD -> "ALDI N"
+            Retailer.ALDI_SUED -> "ALDI S"
             Retailer.KAUFLAND -> "KL"
             Retailer.NETTO_MD -> "NET"
             Retailer.ROSSMANN -> "RM"

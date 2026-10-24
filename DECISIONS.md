@@ -98,6 +98,10 @@ wäre ein Regalpreis aus einer anderen Stadt oft der Sieger. Optional gibt es �
 Regionale Angebote zählen mit zum Vergleich, weil sie für die Kette im ganzen Gebiet gelten; ihr Gebiet
 steht dabei. ALDI ist in ALDI Nord und ALDI Süd getrennt. Alte Caches werden weiter gelesen.
 
+**D-20 · Angebotsportale nur per Übernahme in der App (Noel, 24.10.2026).** aktionspreis.de wird wie eine
+Händlerseite geöffnet und auf Knopfdruck gelesen; kein Kontakt zum Betreiber, kein Hintergrundabruf. Der
+Händler muss je Angebot eindeutig erkennbar sein, sonst fehlt das Angebot (die Vorschau nennt die Anzahl).
+
 ## Annahmen
 
 * Berlin liegt im ALDI-Nord-Gebiet; EDEKA Berlin gehört zur Region Minden-Hannover.

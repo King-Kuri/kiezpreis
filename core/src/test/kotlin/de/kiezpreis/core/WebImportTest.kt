@@ -176,6 +176,30 @@ class WebImportTest {
     }
 
     @Test
+    fun portalReadsTheChainPerOfferAndNeverGuesses() {
+        val json = """[
+            {"name":"Butter 250 g","price":"1,79","retailer":"PENNY"},
+            {"name":"Milch 1 l","price":"0,99","shop":{"name":"ALDI SÜD"}},
+            {"name":"Cola 1,25 l","price":"1,11","store":"Netto"},
+            {"name":"Eier 10 Stück","price":"2,49"}
+        ]"""
+        val cards = listOf(DomCard("Bananen 1 kg", "1,29 €", note = "Bananen 1 kg 1,29 € REWE gültig bis Sa"), DomCard("Äpfel", "1,99 €", note = "Lidl oder Kaufland"))
+        val draft = WebImport.draft(page(url = "https://www.aktionspreis.de/angebote/milch", responses = listOf(json), cards = cards), now)
+        assertTrue(draft.site!!.isPortal)
+        assertEquals(mapOf("Butter 250 g" to Retailer.PENNY, "Milch 1 l" to Retailer.ALDI_SUED, "Bananen 1 kg" to Retailer.REWE),
+            draft.items.associate { it.title to it.retailer })
+        // Plain "Netto" (two chains), no chain at all, and two chains in one tile are left out.
+        assertEquals(3, draft.unassigned)
+
+        val searched = WebImport.toBatch(draft, draft.items, MarketChoice.Market("10245", null), now).getOrThrow()
+        assertTrue(searched.offers.all { it.availability == Coverage.REGIONAL && it.area!!.contains("Berlin") && it.stores.isEmpty() })
+        assertEquals("aktionspreis", searched.siteKey)
+        val unknown = WebImport.toBatch(draft, draft.items, MarketChoice.Unknown, now).getOrThrow().offers.associateBy { it.retailer }
+        assertEquals(Coverage.UNKNOWN, unknown.getValue(Retailer.PENNY).availability)
+        assertEquals("ALDI-Süd-Gebiet", unknown.getValue(Retailer.ALDI_SUED).area)
+    }
+
+    @Test
     fun aldiWithoutMarketBelongsToItsArea() {
         val draft = WebImport.draft(page(url = "https://www.aldi-nord.de/angebote.html", responses = listOf("""[{"name":"Butter","price":"1,79"}]""")), now)
         val offer = WebImport.toBatch(draft, draft.items, MarketChoice.Unknown, now).getOrThrow().offers.single()

@@ -35,6 +35,10 @@ data class ExtractedOffer(
     val imageUrl: String? = null,
     val conditions: Set<OfferCondition> = emptySet(),
     val evidence: Evidence,
+    /** Chain named next to the offer (portals list several chains on one page). */
+    val retailerText: String? = null,
+    /** Resolved chain; set when the draft is built. */
+    val retailer: de.kiezpreis.core.model.Retailer? = null,
 )
 
 /**
@@ -111,6 +115,7 @@ object OfferExtractor {
             imageUrl = image(o.field(IMAGE_KEYS)),
             conditions = conditions(o),
             evidence = evidence,
+            retailerText = o.field(RETAILER_KEYS)?.let { it.string() ?: (it as? JsonObject)?.field(listOf("name", "title"))?.string() },
         )
     }
 
@@ -238,6 +243,7 @@ object OfferExtractor {
             imageUrl = card.image?.takeIf { it.startsWith("https://") },
             conditions = conditionsFromText(listOfNotNull(card.note, card.price, card.title).joinToString(" | ").lowercase()),
             evidence = Evidence.PAGE_TEXT,
+            retailerText = card.retailer?.takeIf { RetailerNames.find(it) != null } ?: card.note,
         )
     }
 
@@ -247,7 +253,7 @@ object OfferExtractor {
     private fun dedupe(list: List<ExtractedOffer>): List<ExtractedOffer> {
         val best = LinkedHashMap<String, ExtractedOffer>()
         for (o in list) {
-            val key = TextNormalizer.normalizeQuery(o.title) + "|" + o.price.value
+            val key = TextNormalizer.normalizeQuery(o.title) + "|" + o.price.value + "|" + RetailerNames.find(o.retailerText)
             val existing = best[key]
             if (existing == null || o.evidence.rank > existing.evidence.rank) best[key] = o
         }
@@ -304,6 +310,10 @@ object OfferExtractor {
     )
     private val TEXT_KEYS = listOf("text", "formatted", "display", "label")
     private val SIZE_KEYS = listOf("packaging", "packagesize", "packsize", "size", "quantitytext", "contenttext", "weight", "subtitle")
+    private val RETAILER_KEYS = listOf(
+        "retailer", "retailername", "store", "storename", "shop", "shopname", "merchant", "merchantname", "chain",
+        "chainname", "company", "companyname", "haendler", "händler", "seller", "vendor", "market", "marketname",
+    )
     private val BRAND_KEYS = listOf("brand", "brandname", "manufacturer")
     private val FROM_KEYS = listOf("validfrom", "startdate", "validitystart", "datefrom", "offervalidfrom", "pricevalidfrom", "from", "start")
     private val TO_KEYS = listOf("validto", "validuntil", "enddate", "validityend", "dateto", "offervalidto", "pricevaliduntil", "to", "end")
