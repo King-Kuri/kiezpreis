@@ -52,10 +52,18 @@ gewünschten Prospektangebote, sind aber teils durch Bot-Schutz gesperrt oder pe
 3. **Lidl-Prospekt und ALDI Nord** sind die nächsten Kandidaten, weil sie ohne Umgehung erreichbar sind.
    Beide sind bundesweit beworben; Berliner Gültigkeit wird nur als „bestätigt“ markiert, wenn der
    Prospekt das ausdrücklich sagt, sonst „nicht bestätigt“. Sie werden als **experimentell** geführt.
-4. **REWE, EDEKA, PENNY, Kaufland** würden eine WebView-Lösung erfordern, die die Händlerseite im
-   eingebetteten Browser lädt und die angezeigten Daten liest. Das ist technisch möglich, berührt aber
-   Nutzungsbedingungen und Bot-Schutz. **Wird nur nach ausdrücklicher Entscheidung umgesetzt.**
-5. **Netto** wird wegen robots.txt nicht automatisiert abgefragt.
+4. **Übernahme von Händlerseiten (seit 24.10.2026, experimentell, alle sieben Händler).** Noel hat den
+   WebView-Weg freigegeben. Umgesetzt ist er so, dass die Person die Seite selbst bedient und die App
+   nur auf Knopfdruck liest, was die Seite zeigt (D-17, D-18). Automatisch im Hintergrund wird nichts abgerufen.
+5. **Netto** wird wegen robots.txt nicht automatisiert abgefragt. Die von der Person bediente Seite fällt
+   nicht darunter, weil robots.txt sich an Crawler richtet.
+6. **Nutzungsbedingungen:** Die REWE-App-Bedingungen (Stand 13.06.2023) erlauben nur private Nutzung und
+   verbieten Kopieren und Extrahieren darüber hinaus. Sie gelten für die REWE-App, nicht ausdrücklich für die
+   Website. Kiezpreis speichert übernommene Preise nur auf dem Gerät der Person und gibt nichts weiter.
+   Eine Veröffentlichung im Play Store mit dieser Funktion sollte vorher rechtlich geprüft werden.
+7. **Nicht live geprüft:** Diese Arbeitsumgebung darf keine Händler-Website abrufen. Die Erkennung beruht
+   auf üblichen Seitenformaten (schema.org, Next.js-Daten, JSON-Antworten, Produktkacheln) und muss auf
+   dem Gerät gegen die echten Seiten erprobt werden.
 
 ## Region
 

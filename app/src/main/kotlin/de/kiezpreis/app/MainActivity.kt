@@ -13,7 +13,7 @@ import de.kiezpreis.ui.KiezApp
 
 /** Keeps the controller (search text, navigation, filters) across rotation and theme changes. */
 class AppViewModel(app: KiezApplication) : ViewModel() {
-    val controller = AppController(app.offers, app.userData, viewModelScope)
+    val controller = AppController(app.offers, app.userData, app.imports, viewModelScope)
 }
 
 class MainActivity : ComponentActivity() {

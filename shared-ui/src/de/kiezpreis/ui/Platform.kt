@@ -33,6 +33,19 @@ interface Platform {
 
     /** Version name for the about section. */
     val versionName: String
+
+    /** Whether retailer pages can be opened in an embedded browser (Android WebView only). */
+    val supportsRetailerBrowser: Boolean
+
+    /**
+     * Shows the retailer page of [state] and answers its requests (back, reload, capture).
+     * Navigation stays on the retailer's own domain.
+     */
+    @Composable
+    fun RetailerBrowser(state: BrowserState, modifier: Modifier)
+
+    /** Deletes cookies and site storage the embedded browser collected. */
+    fun clearRetailerBrowserData()
 }
 
 val LocalPlatform = staticCompositionLocalOf<Platform> { error("No platform") }

@@ -71,6 +71,25 @@ Ziffern für Preise. Spart APK-Größe und Lizenzfragen; eine eigene Schrift kan
 **D-16 · Händlerkennzeichen sind keine Logos.** Farbige Wortmarken in Markenfarbe, um keine Markenlogos
 nachzubilden.
 
+**D-17 · Händlerseiten nur sichtbar und auf Knopfdruck (Noel, 24.10.2026).** Für REWE, EDEKA, PENNY,
+Kaufland, Netto, Lidl und ALDI Nord öffnet die App die Händlerseite in einer WebView. Die Person wählt dort
+selbst ihren Markt und beantwortet Cookie- oder Sicherheitsabfragen selbst. Erst nach Tippen auf
+„Angebote übernehmen“ liest die App die Seite. Sie liest nur, was schon da ist: JSON-LD, eingebettetes JSON
+und die JSON-Antworten, die die Seite selbst geladen hat. Dazu kommen Produktkacheln, in denen genau ein Preis steht.
+Keine Hintergrundabrufe, kein automatisches Klicken, keine Umgehung von Bot-Schutz, keine Weitergabe.
+Navigation bleibt auf der Domain des Händlers. Eine JavaScript-Brücke gibt es nicht. Das Ergebnis kommt über
+`evaluateJavascript` zurück, und die URL setzt die App selbst ein.
+Begründung: So entspricht die Nutzung dem privaten Lesen der Seite. Die REWE-App-Bedingungen (Stand
+13.06.2023) erlauben nur private Nutzung, und genau das bleibt es. Bot-Schutz wird nicht umgangen, weil ein
+Mensch die Seite bedient.
+
+**D-18 · Vorschau vor dem Speichern, Markt durch die Person.** Erkannte Preise werden erst nach Sichtprüfung
+übernommen, jeder einzeln abwählbar. Filialgenau („Nur 1 Filiale“) wird ein Preis nur, wenn eine Berliner PLZ
+für den Markt angegeben ist. Eine PLZ, die die Seite nennt, wird nur vorgeschlagen. Ohne Markt heißt es
+„Berlin nicht bestätigt“, und eine PLZ außerhalb Berlins wird abgelehnt. Mehrdeutiges wird verworfen, etwa
+Ganzzahlen ohne Cent-Hinweis, mehrere Preise in einer Kachel oder Fremdwährung. Preise ohne Enddatum
+verschwinden nach 7 Tagen. Ein neuer Import für denselben Händler und Markt ersetzt den alten.
+
 ## Annahmen
 
 * Berlin liegt im ALDI-Nord-Gebiet; EDEKA Berlin gehört zur Region Minden-Hannover.

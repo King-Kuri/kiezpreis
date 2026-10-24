@@ -35,6 +35,21 @@ object SourceCatalog {
         notes = "Offizielle, dokumentierte API. Liefert Preisbeobachtungen, keine Prospektangebote.",
     )
 
+    val webImport = SourceDescriptor(
+        id = "web_import",
+        name = "Von Händlerseiten übernommen",
+        retailer = null,
+        kind = SourceKind.RETAILER_WEB,
+        readiness = SourceReadiness.EXPERIMENTAL,
+        berlinCoverage = "Filialgenau, wenn du beim Übernehmen deinen Berliner Markt angibst. Sonst „Berlin nicht bestätigt“.",
+        license = "Nutzungsbedingungen des jeweiligen Händlers; nur für deinen privaten Gebrauch auf diesem Gerät",
+        refreshIntervalHours = 1,
+        homepage = null,
+        notes = "Du öffnest die Angebotsseite des Händlers in der App und tippst auf „Angebote übernehmen“. " +
+            "Die App liest nur, was die Seite dir gerade zeigt, und prüft es streng. Es läuft nichts im Hintergrund, " +
+            "Sicherheitsabfragen des Händlers löst du selbst. Ohne Enddatum verschwinden Preise nach 7 Tagen.",
+    )
+
     val lidlLeaflet = SourceDescriptor(
         id = "lidl_leaflet",
         name = "Lidl Online-Prospekt",
@@ -61,36 +76,38 @@ object SourceCatalog {
         notes = "Daten stecken als JSON in der Angebotsseite. Muss auf dem Gerät geprüft werden.",
     )
 
+    private const val VIA_IMPORT = " Über „Von Händlerseiten übernehmen“ kannst du die Angebote selbst in die App holen."
+
     val unavailable = listOf(
         SourceDescriptor(
             "rewe_web", "REWE Marktangebote", Retailer.REWE, SourceKind.RETAILER_WEB, SourceReadiness.UNAVAILABLE,
             "Filialgenau (z. B. REWE Heerstr. 560, Berlin), aber nur im Browser gerendert.",
             "Nutzungsbedingungen REWE", 24, Retailer.REWE.website,
-            "Kein offenes API. App-API nur mit Client-Zertifikat aus der REWE-App, das wir nicht verwenden.",
+            "Kein automatischer Abruf: kein offenes API, App-API nur mit Client-Zertifikat aus der REWE-App." + VIA_IMPORT,
         ),
         SourceDescriptor(
             "edeka_web", "EDEKA Marktangebote", Retailer.EDEKA, SourceKind.RETAILER_WEB, SourceReadiness.UNAVAILABLE,
             "Filialgenau (Berlin = EDEKA Minden-Hannover).",
             "Nutzungsbedingungen EDEKA", 24, Retailer.EDEKA.website,
-            "JSON-Dienst existiert, lehnt aber Zugriffe außerhalb des Browsers per Bot-Schutz ab.",
+            "Kein automatischer Abruf: der JSON-Dienst lehnt Zugriffe außerhalb des Browsers ab." + VIA_IMPORT,
         ),
         SourceDescriptor(
             "penny_web", "PENNY Angebote", Retailer.PENNY, SourceKind.RETAILER_WEB, SourceReadiness.UNAVAILABLE,
             "Regional nach Verkaufsregion des Marktes.",
             "Nutzungsbedingungen PENNY", 24, Retailer.PENNY.website,
-            "REST-Endpunkt nur aus der eigenen Website heraus nutzbar (Bot-Schutz).",
+            "Kein automatischer Abruf: der REST-Endpunkt ist nur aus der eigenen Website heraus nutzbar." + VIA_IMPORT,
         ),
         SourceDescriptor(
             "kaufland_web", "Kaufland Filialangebote", Retailer.KAUFLAND, SourceKind.RETAILER_WEB, SourceReadiness.UNAVAILABLE,
             "Filialgenau.", "Nutzungsbedingungen Kaufland", 24, Retailer.KAUFLAND.website,
-            "Bot-Challenge vor den Angeboten. Wird nicht umgangen.",
+            "Kein automatischer Abruf: Bot-Challenge vor den Angeboten, die wir nicht umgehen." + VIA_IMPORT,
         ),
         SourceDescriptor(
             "netto_web", "Netto Filialangebote", Retailer.NETTO_MD, SourceKind.RETAILER_WEB, SourceReadiness.UNAVAILABLE,
             "Filialgenau.", "Nutzungsbedingungen Netto", 24, Retailer.NETTO_MD.website,
-            "robots.txt untersagt das automatisierte Abrufen der Datenendpunkte.",
+            "Kein automatischer Abruf: robots.txt untersagt das Abrufen der Datenendpunkte." + VIA_IMPORT,
         ),
     )
 
-    val all: List<SourceDescriptor> = listOf(openPrices, sample, lidlLeaflet, aldiNord) + unavailable
+    val all: List<SourceDescriptor> = listOf(openPrices, webImport, sample, lidlLeaflet, aldiNord) + unavailable
 }

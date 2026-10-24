@@ -77,9 +77,9 @@ class OfferRepository(
     }
 
     /** Refreshes enabled sources whose data is older than their interval, or all when [force]. */
-    suspend fun refresh(force: Boolean = false, context: FetchContext = FetchContext(clock(), null)) {
+    suspend fun refresh(force: Boolean = false, context: FetchContext = FetchContext(clock(), null), only: Set<String>? = null) {
         mutex.withLock {
-            val due = sources.filter { it.descriptor.id in enabledIds }.filter { s ->
+            val due = sources.filter { it.descriptor.id in enabledIds && (only == null || it.descriptor.id in only) }.filter { s ->
                 force || cache[s.descriptor.id]?.let { clock() - it.fetchedAt > s.descriptor.refreshIntervalHours * HOUR } ?: true
             }
             if (due.isEmpty()) {

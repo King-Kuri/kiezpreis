@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
+import de.kiezpreis.ui.BrowserState
 import de.kiezpreis.ui.Platform
 import de.kiezpreis.ui.theme.Kiez
 import dev.chrisbanes.haze.HazeState
@@ -48,4 +49,11 @@ class AndroidPlatform(override val versionName: String) : Platform {
             ),
         )
     }
+
+    override val supportsRetailerBrowser: Boolean = true
+
+    @Composable
+    override fun RetailerBrowser(state: BrowserState, modifier: Modifier) = RetailerWebView(state, modifier)
+
+    override fun clearRetailerBrowserData() = clearRetailerWebData()
 }

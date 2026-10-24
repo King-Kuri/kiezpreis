@@ -42,6 +42,12 @@ fun main(args: Array<String>) {
         "10_settings" to { c -> c.selectTab(Tab.SETTINGS) },
         "11_sources" to { c -> c.selectTab(Tab.SETTINGS); c.sourcesScreenOpen = true },
         "12_search_proteinpulver" to { c -> c.query = "Proteinpulver"; c.selectTab(Tab.SEARCH) },
+        "14_import_review" to { c -> c.selectTab(Tab.SETTINGS); c.sourcesScreenOpen = true; capture(c) },
+        "15_sources_after_import" to { c ->
+            c.selectTab(Tab.SETTINGS); c.sourcesScreenOpen = true; capture(c)
+            val draft = c.importDraft!!
+            c.confirmImport(draft.items.dropLast(1), de.kiezpreis.core.importer.MarketChoice.BerlinMarket("13591", "REWE Heerstr."))
+        },
     )
     for (mode in listOf(ThemeMode.DARK, ThemeMode.LIGHT)) {
         for ((name, setup) in shots) {
@@ -77,10 +83,29 @@ private fun seedUserData(c: AppController) {
     listOf("Butter", "Proteinpulver", "Coca-Cola Zero").forEach(c.user::addRecentSearch)
 }
 
+/**
+ * Feeds an invented capture (test fixture, not a real page) through the real import path.
+ * Only the screenshot uses it; nothing of it reaches the app.
+ */
+private fun capture(c: AppController) {
+    c.openRetailerBrowser(de.kiezpreis.core.model.Retailer.REWE)
+    val fixture = """
+        {"url":"https://www.rewe.de/angebote/berlin/0000/testmarkt/","title":"Testseite",
+         "embeddedJson":[${'"'}{\"market\":{\"zipCode\":\"13591\"},\"offers\":[
+           {\"title\":\"Testprodukt Vollmilch 1 l\",\"price\":\"0,99 €\",\"oldPrice\":\"1,19 €\",\"grammage\":\"1 l = 0,99 €\",\"validTo\":\"2026-10-31\"},
+           {\"title\":\"Testprodukt Bio-Bananen\",\"price\":\"1,49 €\",\"subtitle\":\"1 kg\",\"validTo\":\"2026-10-31\"},
+           {\"title\":\"Testprodukt Cola 1,25 l\",\"price\":\"1,11 €\",\"badge\":\"zzgl. Pfand\",\"validTo\":\"2026-10-31\"}]}${'"'}],
+         "domCards":[{"title":"Testprodukt Butter 250 g","price":"1,79 €","oldPrice":"2,29 €","basePrice":"1 kg = 7,16 €"}]}
+    """.trimIndent()
+    c.browser!!.onCaptured(fixture)
+    val until = System.currentTimeMillis() + 5_000
+    while (c.importDraft == null && System.currentTimeMillis() < until) Thread.sleep(20)
+}
+
 private fun render(controller: AppController, file: File) {
     val density = Density(2.5f)
     val scene = ImageComposeScene(width = (412 * 2.5).toInt(), height = (892 * 2.5).toInt(), density = density) {
-        KiezApp(controller, DesktopPlatform())
+        KiezApp(controller, DesktopPlatform(supportsRetailerBrowser = true))
     }
     var t = 0L
     repeat(12) { scene.render(t); t += 250_000_000L }

@@ -227,7 +227,8 @@ fun SourcesContent(controller: AppController, data: DataState, padding: PaddingV
                 }
             }
         }
-        SourceCatalog.all.forEach { d ->
+        item(key = "web_import_card") { RetailerImportCard(controller, today, Modifier.padding(horizontal = 16.dp)) }
+        SourceCatalog.all.filter { it.id != SourceCatalog.webImport.id }.forEach { d ->
             item(key = d.id) {
                 val state = data.sources.firstOrNull { it.descriptor.id == d.id }
                 SourceCard(d, state, controller.testResults[d.id], today, Modifier.padding(horizontal = 16.dp),

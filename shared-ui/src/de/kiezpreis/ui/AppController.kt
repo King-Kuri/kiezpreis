@@ -18,7 +18,15 @@ import de.kiezpreis.core.search.ProductIdentity
 import de.kiezpreis.core.search.SearchEngine
 import de.kiezpreis.core.search.SearchFilters
 import de.kiezpreis.core.search.SortOrder
+import de.kiezpreis.core.data.SourceCatalog
+import de.kiezpreis.core.importer.CapturedPage
+import de.kiezpreis.core.importer.ExtractedOffer
+import de.kiezpreis.core.importer.ImportDraft
+import de.kiezpreis.core.importer.MarketChoice
+import de.kiezpreis.core.importer.WebImport
+import de.kiezpreis.core.importer.WebImportStore
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -35,6 +43,7 @@ data class DetailRoute(val productKey: String, val fallbackTitle: String)
 class AppController(
     val offers: OfferRepository,
     val user: UserDataRepository,
+    val imports: WebImportStore,
     private val scope: CoroutineScope,
     val now: () -> Long = System::currentTimeMillis,
 ) {
@@ -57,15 +66,26 @@ class AppController(
     var testResults by mutableStateOf<Map<String, String>>(emptyMap())
         private set
 
+    /** Open retailer page, above the sources screen. */
+    var browser by mutableStateOf<BrowserState?>(null)
+        private set
+    /** Prices read from the page, waiting for the user's confirmation. */
+    var importDraft by mutableStateOf<ImportDraft?>(null)
+        private set
+    /** One-line feedback after an import, shown on the sources screen. */
+    var importMessage by mutableStateOf<String?>(null)
+
     init {
         scope.launch {
-            user.prefs.collect { offers.setEnabledSources(it.enabledSources) }
+            // Imported prices are always used: the user brought them in deliberately.
+            user.prefs.collect { offers.setEnabledSources(it.enabledSources + SourceCatalog.webImport.id) }
         }
         refresh(force = false)
     }
 
     fun selectTab(t: Tab) {
         detailStack.clear()
+        closeBrowser()
         sourcesScreenOpen = false
         tab = t
     }
@@ -105,6 +125,12 @@ class AppController(
     fun back(): Boolean = when {
         filterSheetOpen -> { filterSheetOpen = false; true }
         detailStack.isNotEmpty() -> { detailStack.removeAt(detailStack.lastIndex); true }
+        importDraft != null -> { importDraft = null; browser?.capturing = false; true }
+        browser != null -> {
+            val b = browser!!
+            if (b.canGoBack) b.goBack() else closeBrowser()
+            true
+        }
         sourcesScreenOpen -> { sourcesScreenOpen = false; true }
         tab != Tab.HOME -> { tab = Tab.HOME; true }
         else -> false
@@ -129,6 +155,48 @@ class AppController(
     fun toggleSource(id: String, enabled: Boolean) {
         user.updatePrefs { p -> p.copy(enabledSources = if (enabled) p.enabledSources + id else p.enabledSources - id) }
         if (enabled) refresh(force = false)
+    }
+
+    fun openRetailerBrowser(retailer: Retailer) {
+        importMessage = null
+        browser = BrowserState(retailer, retailer.website, ::onCaptured)
+    }
+
+    fun closeBrowser() {
+        importDraft = null
+        browser = null
+    }
+
+    private fun onCaptured(raw: String) {
+        scope.launch(Dispatchers.Default) {
+            val draft = runCatching { WebImport.draft(CapturedPage.decode(raw), now()) }.getOrNull()
+            val b = browser
+            if (draft == null) {
+                b?.capturing = false
+                b?.error = "Die Seite konnte nicht gelesen werden."
+            } else {
+                importDraft = draft
+            }
+        }
+    }
+
+    /** Stores the confirmed prices. Returns an error text, or null on success. */
+    fun confirmImport(selected: List<ExtractedOffer>, market: MarketChoice): String? {
+        val draft = importDraft ?: return "Nichts zu übernehmen"
+        val batch = WebImport.toBatch(draft, selected, market, now()).getOrElse { return it.message ?: "Übernahme nicht möglich" }
+        imports.save(batch)
+        importMessage = "${Labels.count(batch.offers.size, "Preis", "Preise")} von ${batch.retailer.displayName} übernommen" +
+            (batch.store?.let { " · ${it.name}" } ?: " · Berlin nicht bestätigt")
+        closeBrowser()
+        sourcesScreenOpen = true
+        scope.launch { offers.refresh(force = true, context = FetchContext(now(), user.prefs.value.postalCode), only = setOf(WebImport.SOURCE_ID)) }
+        return null
+    }
+
+    fun removeImport(retailer: Retailer) {
+        imports.remove(retailer)
+        importMessage = null
+        scope.launch { offers.refresh(force = true, context = FetchContext(now(), null), only = setOf(WebImport.SOURCE_ID)) }
     }
 
     /** Product group for a key, built from all current Berlin offers (not limited by search filters). */

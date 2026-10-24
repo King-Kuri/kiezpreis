@@ -30,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import de.kiezpreis.core.data.ThemeMode
+import de.kiezpreis.ui.screens.BrowserScreen
+import de.kiezpreis.ui.screens.ImportReviewContent
 import de.kiezpreis.ui.components.AuroraBackground
 import de.kiezpreis.ui.components.GlassIconButton
 import de.kiezpreis.ui.components.GlassNavBar
@@ -54,6 +56,8 @@ private sealed interface Route {
     data class TabRoute(val tab: Tab) : Route
     data class Detail(val route: DetailRoute, val depth: Int) : Route
     data object Sources : Route
+    /** The retailer page; the review of captured prices lies above it so the page stays loaded. */
+    data class Browser(val state: BrowserState) : Route
 }
 
 private val NavBarSpace = 112.dp
@@ -87,6 +91,7 @@ private fun AppScaffold(controller: AppController, platform: Platform) {
 
     val route: Route = when {
         controller.detailStack.isNotEmpty() -> Route.Detail(controller.detailStack.last(), controller.detailStack.size)
+        controller.browser != null -> Route.Browser(controller.browser!!)
         controller.sourcesScreenOpen -> Route.Sources
         else -> Route.TabRoute(controller.tab)
     }
@@ -99,9 +104,11 @@ private fun AppScaffold(controller: AppController, platform: Platform) {
         top = top + when (r) {
             is Route.TabRoute -> if (r.tab == Tab.SEARCH) SearchTopBarHeight + 8.dp else 12.dp
             is Route.Detail, Route.Sources -> DetailTopBarHeight + 8.dp
+            is Route.Browser -> 0.dp
         },
         bottom = bottom + when (r) {
             is Route.TabRoute -> NavBarSpace
+            is Route.Browser -> 0.dp
             else -> 24.dp
         },
     )
@@ -138,6 +145,18 @@ private fun AppScaffold(controller: AppController, platform: Platform) {
                     }
                     is Route.Detail -> DetailContent(controller, r.route, data, p)
                     Route.Sources -> SourcesContent(controller, data, p)
+                    is Route.Browser -> Box(Modifier.fillMaxSize()) {
+                        BrowserScreen(controller, r.state, p)
+                        controller.importDraft?.let { draft ->
+                            Box(Modifier.fillMaxSize()) {
+                                AuroraBackground()
+                                ImportReviewContent(controller, draft, padFor(Route.Sources))
+                                Box(Modifier.align(Alignment.TopStart).padding(top = top).padding(horizontal = 16.dp, vertical = 8.dp)) {
+                                    GlassIconButton(Icons.Rounded.ArrowBack, "Zurück zur Seite") { controller.back() }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -158,6 +177,7 @@ private fun AppScaffold(controller: AppController, platform: Platform) {
                 Route.Sources -> Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     GlassIconButton(Icons.Rounded.ArrowBack, "Zurück") { controller.back() }
                 }
+                is Route.Browser -> Box(Modifier)
             }
         }
 
@@ -181,5 +201,6 @@ private fun AppScaffold(controller: AppController, platform: Platform) {
 private fun depth(r: Route): Int = when (r) {
     is Route.TabRoute -> 0
     Route.Sources -> 1
-    is Route.Detail -> 1 + r.depth
+    is Route.Browser -> 2
+    is Route.Detail -> 10 + r.depth
 }

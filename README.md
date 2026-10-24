@@ -22,7 +22,8 @@ Kotlin, Jetpack Compose, Material 3, eigenständige „Liquid Glass“-Gestaltun
 | Datenquellen einzeln an/aus, Status, Verbindungstest, Cache mit Offline-Stand | fertig, Unit-Tests |
 | Open Prices als echte Quelle | implementiert, mit Testdaten geprüft; Live-Abruf nur auf dem Gerät möglich (siehe unten) |
 | Preisalarme | **nicht aktiv**, bewusst nur als „in Vorbereitung“ angezeigt |
-| Händlerprospekte (REWE, Lidl, ALDI, …) | **nicht angebunden**, Bewertung in DATA_SOURCES.md |
+| Händlerseiten (alle 7 Händler) | **experimentell**: Seite in der App öffnen, Angebote per Knopfdruck übernehmen und prüfen (DATA_SOURCES.md, D-17) |
+| Automatischer Abruf von Händlerprospekten | **nicht angebunden**, Bewertung in DATA_SOURCES.md |
 
 ## APK installieren
 
