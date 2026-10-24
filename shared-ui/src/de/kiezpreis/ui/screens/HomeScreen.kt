@@ -170,8 +170,8 @@ fun HomeContent(
                 }
             }
         }
-        item { Spacer(Modifier.height(8.dp)); SectionHeader("Stöbern nach Kategorie") }
-        item {
+        if (data.hasAnyData) item { Spacer(Modifier.height(8.dp)); SectionHeader("Stöbern nach Kategorie") }
+        if (data.hasAnyData) item {
             FlowRow(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -191,8 +191,8 @@ fun HomeContent(
                 FavoriteMiniRow(f, group?.let { leadOffer(it, today) }?.price, group?.let { leadOffer(it, today).retailer }) { controller.openFavorite(f) }
             }
         }
-        item { Spacer(Modifier.height(8.dp)); SectionHeader("Händler in Berlin") }
-        item {
+        if (data.hasAnyData) item { Spacer(Modifier.height(8.dp)); SectionHeader("Händler in Berlin") }
+        if (data.hasAnyData) item {
             LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(Retailer.supermarkets) { r ->
                     val count = current.count { it.retailer == r }
@@ -248,7 +248,7 @@ private fun CategoryTile(category: Category, count: Int, modifier: Modifier, onC
             ProductThumb(category, size = 42.dp)
             Spacer(Modifier.width(10.dp))
             Column {
-                Text(category.label, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                Text(category.label, style = MaterialTheme.typography.titleSmall, maxLines = 2)
                 Text(if (count == 0) "keine aktuell" else Labels.count(count, "Preis", "Preise"), fontSize = 12.sp, color = c.textTertiary)
             }
         }

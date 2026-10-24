@@ -111,7 +111,10 @@ fun DetailContent(controller: AppController, route: DetailRoute, data: DataState
     val upcoming = group.offers.filterNot(isActive)
     val best = group.cheapestComparable(isActive)
     val bySize: List<Pair<PackSize?, List<Offer>>> = active.groupBy { it.packSize }.toList()
-        .sortedBy { (_, list) -> list.mapNotNull { it.price?.value }.minOrNull() ?: Long.MAX_VALUE }
+        .sortedWith(
+            compareBy<Pair<PackSize?, List<Offer>>> { (_, list) -> list.mapNotNull { PriceMath.unitPrice(it)?.cents?.value }.minOrNull() ?: Long.MAX_VALUE }
+                .thenBy { (_, list) -> list.mapNotNull { it.price?.value }.minOrNull() ?: Long.MAX_VALUE },
+        )
     val lead = best ?: active.firstOrNull() ?: group.offers.first()
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding, verticalArrangement = Arrangement.spacedBy(12.dp)) {
