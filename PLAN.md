@@ -13,7 +13,7 @@ Stand: 24.10.2026. ✅ fertig und getestet · 🟡 implementiert, Prüfung offen
 * ✅ Startseite, Suche mit Filter-Sheet, Ergebnisliste, Produktdetail, Merkliste, Einstellungen, Datenquellen
 * ✅ Beispieldaten, durchgehend gekennzeichnet
 * ✅ Zustände: lädt, keine Daten, Quelle nicht erreichbar, kein Treffer, weggefiltert, kein Preis
-* ✅ 26 Screenshots (13 Screens × Dark/Light) automatisch gerendert
+* ✅ 25 Screenshots (12 Ansichten in Dark und Light, plus Leerzustand) automatisch gerendert
 * 🟡 Debug-APK über GitHub Actions; Start auf echtem Gerät noch nicht beobachtet
 
 ## Phase 3 – Echte Daten
