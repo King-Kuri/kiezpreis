@@ -65,11 +65,14 @@ gewünschten Prospektangebote, sind aber teils durch Bot-Schutz gesperrt oder pe
    auf üblichen Seitenformaten (schema.org, Next.js-Daten, JSON-Antworten, Produktkacheln) und muss auf
    dem Gerät gegen die echten Seiten erprobt werden.
 
-## Region
+## Gebiet (seit 0.3)
 
-Berlin wird über Postleitzahlen bestimmt: 10115–10999, 12043–12689, 13051–13629, 14050–14199,
-ohne bekannte Brandenburger Codes in diesen Bereichen (aktuell 12529 Schönefeld). Ein Preis mit
-Brandenburger PLZ (z. B. 14467 Potsdam, 15827 Dahlewitz) wird nie als Berliner Preis gezeigt.
+Die App zeigt alle Angebote und nennt bei jedem, wo es gilt: bundesweit, in einem Gebiet (z. B.
+„ALDI-Nord-Gebiet“), nur in einem Markt (mit Ort) oder „Gebiet unbekannt“. Open Prices wird für ganz
+Deutschland abgefragt (Kreis über Deutschland, Länder außerhalb werden verworfen). Einfaches „Aldi“ ohne
+Nord/Süd wird keinem Händler zugeordnet. Für „Nur meine Gegend“ gilt Berlin als ein Gebiet
+(10115–10999, 12043–12689, 13051–13629, 14050–14199 ohne 12529 Schönefeld), sonst die zweistellige PLZ-Region.
+Potsdam (14467) ist damit nicht Berlin.
 
 ## Aktualität und Abrufintervalle
 

@@ -1,7 +1,6 @@
 package de.kiezpreis.core.data
 
 import de.kiezpreis.core.model.Offer
-import de.kiezpreis.core.region.RegionalRules
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -153,7 +152,6 @@ class OfferRepository(
         }
         val offers = sources.filter { it.descriptor.id in enabledIds }
             .flatMap { cache[it.descriptor.id]?.offers.orEmpty() }
-            .filter(RegionalRules::isVisibleInBerlin)
         _state.value = DataState(offers = offers, sources = sourceStates, isRefreshing = refreshing)
     }
 

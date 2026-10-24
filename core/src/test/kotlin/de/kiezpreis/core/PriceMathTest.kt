@@ -1,7 +1,7 @@
 package de.kiezpreis.core
 
 import de.kiezpreis.core.logic.PriceMath
-import de.kiezpreis.core.model.BerlinAvailability
+import de.kiezpreis.core.model.Coverage
 import de.kiezpreis.core.model.Cents
 import de.kiezpreis.core.model.MeasureUnit
 import de.kiezpreis.core.model.Offer
@@ -45,7 +45,7 @@ class PriceMathTest {
         assertNull(PriceMath.discountPercent(Cents(139), Cents(139)))
         assertNull(PriceMath.discountPercent(Cents(150), Cents(139)))
         val offer = Offer(id = "x", sourceId = "t", retailer = Retailer.LIDL, title = "x", price = Cents(99),
-            availability = BerlinAvailability.BERLIN_WIDE, fetchedAt = 0)
+            availability = Coverage.REGIONAL, fetchedAt = 0)
         assertNull(PriceMath.discountPercent(offer))
         assertEquals(28, PriceMath.discountPercent(offer.copy(referencePrice = ReferencePrice(Cents(139), ReferencePriceKind.STRIKE_THROUGH))))
         assertNull(PriceMath.discountPercent(offer.copy(price = null, referencePrice = ReferencePrice(Cents(139), ReferencePriceKind.STRIKE_THROUGH))))

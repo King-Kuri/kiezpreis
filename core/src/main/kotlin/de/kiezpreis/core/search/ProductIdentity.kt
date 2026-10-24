@@ -4,6 +4,7 @@ import de.kiezpreis.core.logic.PriceMath
 import de.kiezpreis.core.logic.UnitPrice
 import de.kiezpreis.core.model.Offer
 import de.kiezpreis.core.model.PackSize
+import de.kiezpreis.core.region.CoverageRules
 
 /**
  * Decides which offers describe the same product. Two offers belong together only when their
@@ -51,14 +52,21 @@ data class ProductGroup(
     val retailers get() = offers.map { it.retailer }.distinct()
     val hasMixedPackSizes: Boolean get() = packSizes.size > 1
 
+    /** Prices that apply chain-wide, regionally or without stated limits. */
+    val comparableOffers: List<Offer> get() = offers.filter(CoverageRules::isComparable)
+
+    /** Prices of single stores, shown separately with their location. */
+    val storeOffers: List<Offer> get() = offers.filterNot(CoverageRules::isComparable)
+
     /**
-     * The cheapest offer when a fair comparison is possible:
+     * The cheapest offer when a fair comparison is possible. Only [comparableOffers] compete,
+     * so a single store's shelf price somewhere else never becomes "the best price":
      * - same package size everywhere -> lowest price;
      * - different sizes -> lowest base price, only if every offer has one of the same dimension.
      * Otherwise null: the UI then does not crown a winner.
      */
     fun cheapestComparable(eligible: (Offer) -> Boolean = { true }): Offer? {
-        val candidates = offers.filter(eligible)
+        val candidates = comparableOffers.filter(eligible)
         val priced = candidates.filter { it.price != null }
         if (priced.isEmpty()) return null
         if (candidates.map { it.packSize }.distinct().size == 1) return priced.minByOrNull { it.price!!.value }
@@ -69,10 +77,11 @@ data class ProductGroup(
         return withUnit.minByOrNull { it.second!!.cents.value }!!.first
     }
 
-    fun bestUnitPrice(): UnitPrice? = offers.mapNotNull { PriceMath.unitPrice(it) }
+    fun bestUnitPrice(): UnitPrice? = comparableOffers.ifEmpty { offers }.mapNotNull { PriceMath.unitPrice(it) }
         .groupBy { it.dimension }.values.singleOrNull()?.minByOrNull { it.cents.value }
 
-    fun lowestPrice() = offers.mapNotNull { it.price }.minByOrNull { it.value }
+    /** Lowest comparable price; for products known only from single stores, their lowest price. */
+    fun lowestPrice() = (comparableOffers.mapNotNull { it.price }.ifEmpty { offers.mapNotNull { it.price } }).minByOrNull { it.value }
 }
 
 object Grouping {

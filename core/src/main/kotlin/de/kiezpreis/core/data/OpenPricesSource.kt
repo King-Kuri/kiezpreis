@@ -1,7 +1,7 @@
 package de.kiezpreis.core.data
 
 import de.kiezpreis.core.logic.PackSizeParser
-import de.kiezpreis.core.model.BerlinAvailability
+import de.kiezpreis.core.model.Coverage
 import de.kiezpreis.core.model.Category
 import de.kiezpreis.core.model.Cents
 import de.kiezpreis.core.model.MeasureUnit
@@ -12,7 +12,6 @@ import de.kiezpreis.core.model.ReferencePrice
 import de.kiezpreis.core.model.ReferencePriceKind
 import de.kiezpreis.core.model.Retailer
 import de.kiezpreis.core.model.Store
-import de.kiezpreis.core.region.RegionalRules
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
@@ -29,12 +28,12 @@ import java.time.ZoneId
  * Open Prices (https://prices.openfoodfacts.org): crowd-sourced shelf and receipt prices with the
  * exact store (OpenStreetMap) and date. Documented, free, ODbL licensed.
  *
- * The geographic query uses a circle around Berlin, which also covers Brandenburg towns.
- * Every price is therefore checked against the Berlin postal codes; prices from outside are dropped.
+ * A circle over Germany (it also touches neighbouring countries, filtered by [isGerman]), newest first. Every price belongs to one store and is shown with its location;
+ * prices without a usable location (postal code or city) are dropped.
  */
 class OpenPricesSource(
     private val http: HttpClient,
-    private val maxPages: Int = 3,
+    private val maxPages: Int = 5,
     private val maxAgeDays: Long = 21,
 ) : OfferSource {
 
@@ -48,7 +47,7 @@ class OpenPricesSource(
         val offers = mutableListOf<Offer>()
         var rejected = 0
         for (page in 1..maxPages) {
-            val url = "$BASE/api/v1/prices?lat=52.5200&lon=13.4050&radius_km=25&date__gte=$since&order_by=-date&size=100&page=$page"
+            val url = "$BASE/api/v1/prices?lat=51.1657&lon=10.4515&radius_km=450&currency=EUR&date__gte=$since&order_by=-date&size=100&page=$page"
             val response = try {
                 http.get(url, mapOf("User-Agent" to USER_AGENT, "Accept" to "application/json"))
             } catch (e: Exception) {
@@ -105,8 +104,7 @@ class OpenPricesSource(
             postalCode = location.str("osm_address_postcode"),
             city = location.str("osm_address_city"),
         )
-        val availability = RegionalRules.classifyStores(listOf(store))
-        if (availability != BerlinAvailability.STORE_SPECIFIC) return null // outside Berlin or unknown location
+        if (!isGerman(location) || (store.postalCode.isNullOrBlank() && store.city.isNullOrBlank())) return null
 
         val product = item["product"] as? JsonObject
         val title = (item.str("product_name") ?: product?.str("product_name"))?.trim()?.takeIf { it.isNotEmpty() }
@@ -140,12 +138,19 @@ class OpenPricesSource(
             price = Cents.ofEuro(priceValue),
             referencePrice = reference,
             observedOn = date.toString(),
-            availability = availability,
+            availability = Coverage.STORE,
             stores = listOf(store),
             sourceUrl = item.str("location_id")?.let { "$BASE/locations/$it" } ?: BASE,
             ean = code?.takeIf { it.length in 8..14 && it.all(Char::isDigit) },
             fetchedAt = fetchedAt,
         )
+    }
+
+    /** OSM country is not always filled; a German postal code is accepted as evidence too. */
+    private fun isGerman(location: JsonObject): Boolean {
+        val country = location.str("osm_address_country")?.lowercase()
+        if (country != null) return country == "deutschland" || country == "germany" || country == "de"
+        return location.str("osm_address_postcode")?.let(de.kiezpreis.core.region.PostalCodes::isValid) == true
     }
 
     private fun categoryOf(product: JsonObject?): Category {
@@ -166,14 +171,16 @@ class OpenPricesSource(
 
     companion object {
         const val BASE = "https://prices.openfoodfacts.org"
-        const val USER_AGENT = "Kiezpreis/0.1 (Android; Berlin price comparison; non-commercial)"
+        const val USER_AGENT = "Kiezpreis/0.3 (Android; supermarket price comparison; non-commercial)"
         val BERLIN_ZONE: ZoneId = ZoneId.of("Europe/Berlin")
 
         /** Maps OpenStreetMap brand/name to a chain. Plain "Netto" is ambiguous (two chains) and ignored. */
         fun retailerOf(brand: String?, name: String?): Retailer? {
             val text = listOfNotNull(brand, name).joinToString(" ").lowercase()
             return when {
-                "aldi" in text && "süd" !in text && "sud" !in text -> Retailer.ALDI_NORD
+                "aldi" in text && ("süd" in text || "sud" in text) -> Retailer.ALDI_SUED
+                "aldi" in text && "nord" in text -> Retailer.ALDI_NORD
+                // Plain "Aldi" could be either chain; without a reliable Nord/Süd border it is not assigned.
                 "lidl" in text -> Retailer.LIDL
                 "rewe" in text -> Retailer.REWE
                 "edeka" in text -> Retailer.EDEKA

@@ -62,7 +62,8 @@ import de.kiezpreis.core.importer.MarketChoice
 import de.kiezpreis.core.logic.ValidityRules
 import de.kiezpreis.core.model.Retailer
 import de.kiezpreis.core.model.Validity
-import de.kiezpreis.core.region.Berlin
+import de.kiezpreis.core.importer.WebImport
+import de.kiezpreis.core.region.PostalCodes
 import de.kiezpreis.ui.AppController
 import de.kiezpreis.ui.BrowserState
 import de.kiezpreis.ui.Labels
@@ -106,7 +107,7 @@ fun RetailerImportCard(controller: AppController, today: LocalDate, modifier: Mo
             Spacer(Modifier.height(10.dp))
             Text(d.notes, style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(4.dp))
-            Text(d.berlinCoverage, style = MaterialTheme.typography.bodySmall, color = c.textPrimary)
+            Text(d.coverage, style = MaterialTheme.typography.bodySmall, color = c.textPrimary)
             Text("Lizenz: ${d.license}", style = MaterialTheme.typography.bodySmall, color = c.textTertiary, modifier = Modifier.padding(top = 4.dp))
 
             controller.importMessage?.let {
@@ -134,7 +135,7 @@ fun RetailerImportCard(controller: AppController, today: LocalDate, modifier: Mo
                         RetailerMark(b.retailer, size = 28.dp)
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(b.store?.let { "${it.name} · ${it.postalCode}" } ?: "${b.retailer.displayName} · Berlin nicht bestätigt",
+                            Text(b.store?.let { "${it.name} · ${it.postalCode}" } ?: "${b.retailer.displayName} · ${WebImport.chainArea(b.retailer) ?: "Gebiet unbekannt"}",
                                 style = MaterialTheme.typography.bodyMedium, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text("${Labels.count(b.offers.size, "Preis", "Preise")} · ${Labels.timestamp(b.importedAt, today)}",
                                 style = MaterialTheme.typography.labelMedium)
@@ -204,13 +205,14 @@ fun ImportReviewContent(controller: AppController, draft: ImportDraft, padding: 
     val c = Kiez.colors
     val today = controller.today()
     val selected = remember(draft) { mutableStateListOf<Boolean>().apply { repeat(draft.items.size) { add(true) } } }
-    var berlinMarket by remember(draft) { mutableStateOf(draft.detectedPostalCodes.size == 1) }
+    var withMarket by remember(draft) { mutableStateOf(draft.detectedPostalCodes.size == 1) }
     var postal by remember(draft) { mutableStateOf(draft.detectedPostalCodes.singleOrNull().orEmpty()) }
     var marketName by remember(draft) { mutableStateOf("") }
     var error by remember(draft) { mutableStateOf<String?>(null) }
     val chosen = draft.items.filterIndexed { i, _ -> selected.getOrElse(i) { false } }
-    val postalValid = Berlin.containsPostalCode(postal)
-    val canSave = draft.retailer != null && chosen.isNotEmpty() && (!berlinMarket || postalValid)
+    val postalValid = PostalCodes.isValid(postal)
+    val canSave = draft.retailer != null && chosen.isNotEmpty() && (!withMarket || postalValid)
+    val chainArea = draft.retailer?.let(WebImport::chainArea)
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -235,7 +237,7 @@ fun ImportReviewContent(controller: AppController, draft: ImportDraft, padding: 
             when {
                 draft.retailer == null -> item {
                     StateMessage(Icons.Rounded.SearchOff, "Kein unterstützter Händler",
-                        "${draft.host} gehört zu keinem der Berliner Händler, die Kiezpreis kennt. Von dieser Seite wird nichts übernommen.")
+                        "${draft.host} gehört zu keinem der Händler, die Kiezpreis kennt. Von dieser Seite wird nichts übernommen.")
                 }
                 draft.items.isEmpty() -> item {
                     StateMessage(
@@ -247,8 +249,8 @@ fun ImportReviewContent(controller: AppController, draft: ImportDraft, padding: 
                 else -> {
                     item {
                         MarketCard(
-                            draft, berlinMarket, postal, marketName, postalValid,
-                            onBerlinMarket = { berlinMarket = it; error = null },
+                            draft, withMarket, postal, marketName, postalValid, chainArea,
+                            onWithMarket = { withMarket = it; error = null },
                             onPostal = { postal = it.filter(Char::isDigit).take(5); error = null },
                             onName = { marketName = it.take(60) },
                             modifier = Modifier.padding(horizontal = 16.dp),
@@ -278,15 +280,16 @@ fun ImportReviewContent(controller: AppController, draft: ImportDraft, padding: 
                 Column(Modifier.padding(16.dp)) {
                     Text(
                         error ?: when {
-                            berlinMarket && !postalValid -> "Gib die Berliner Postleitzahl des Markts an."
-                            berlinMarket -> "Wird als Preis dieses einen Berliner Markts gespeichert."
-                            else -> "Wird als „Berlin nicht bestätigt“ gespeichert."
+                            withMarket && !postalValid -> "Gib die Postleitzahl des Markts an."
+                            withMarket -> "Wird als Preis dieses einen Markts gespeichert (${PostalCodes.areaLabel(postal)})."
+                            chainArea != null -> "Wird als Preis im $chainArea gespeichert."
+                            else -> "Wird mit „Gebiet unbekannt“ gespeichert."
                         },
                         style = MaterialTheme.typography.bodySmall, color = if (error != null) c.danger else c.textSecondary,
                     )
                     Spacer(Modifier.height(8.dp))
                     PrimaryButton("${Labels.count(chosen.size, "Preis", "Preise")} übernehmen", enabled = canSave, modifier = Modifier.fillMaxWidth()) {
-                        val market = if (berlinMarket) MarketChoice.BerlinMarket(postal, marketName.ifBlank { null }) else MarketChoice.Unknown
+                        val market = if (withMarket) MarketChoice.Market(postal, marketName.ifBlank { null }) else MarketChoice.Unknown
                         error = controller.confirmImport(chosen, market)
                     }
                 }
@@ -298,11 +301,12 @@ fun ImportReviewContent(controller: AppController, draft: ImportDraft, padding: 
 @Composable
 private fun MarketCard(
     draft: ImportDraft,
-    berlinMarket: Boolean,
+    withMarket: Boolean,
     postal: String,
     name: String,
     postalValid: Boolean,
-    onBerlinMarket: (Boolean) -> Unit,
+    chainArea: String?,
+    onWithMarket: (Boolean) -> Unit,
     onPostal: (String) -> Unit,
     onName: (String) -> Unit,
     modifier: Modifier,
@@ -317,14 +321,14 @@ private fun MarketCard(
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                KChip("Mein Berliner Markt", selected = berlinMarket) { onBerlinMarket(true) }
-                KChip("Weiß ich nicht", selected = !berlinMarket) { onBerlinMarket(false) }
+                KChip("Ein bestimmter Markt", selected = withMarket) { onWithMarket(true) }
+                KChip(if (chainArea != null) "Ganzes Gebiet" else "Weiß ich nicht", selected = !withMarket) { onWithMarket(false) }
             }
             Spacer(Modifier.height(10.dp))
-            if (berlinMarket) {
+            if (withMarket) {
                 InputField(postal, "PLZ des Markts, z. B. 13591", "Postleitzahl des Markts", KeyboardType.Number, onPostal)
                 if (postal.length == 5 && !postalValid) {
-                    Text("$postal liegt nicht in Berlin. Preise von außerhalb übernimmt Kiezpreis nicht.",
+                    Text("$postal ist keine gültige Postleitzahl.",
                         style = MaterialTheme.typography.labelMedium, color = c.danger, modifier = Modifier.padding(top = 6.dp))
                 }
                 if (draft.detectedPostalCodes.size == 1 && postal == draft.detectedPostalCodes.single()) {
@@ -335,7 +339,11 @@ private fun MarketCard(
                 Spacer(Modifier.height(8.dp))
                 Text("Die Preise gelten dann nur für diesen Markt. Andere Filialen können abweichen.", style = MaterialTheme.typography.bodySmall)
             } else {
-                Text("Die Preise werden mit „Berlin nicht bestätigt“ gekennzeichnet und zählen nicht als Berliner Preis.", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    if (chainArea != null) "Die Preise gelten dann im $chainArea, wie es die Seite von ${draft.retailer?.shortName} zeigt."
+                    else "Die Preise werden mit „Gebiet unbekannt“ gekennzeichnet. Du siehst bei jedem Angebot, dass der Ort nicht belegt ist.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
     }

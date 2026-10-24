@@ -90,6 +90,14 @@ für den Markt angegeben ist. Eine PLZ, die die Seite nennt, wird nur vorgeschla
 Ganzzahlen ohne Cent-Hinweis, mehrere Preise in einer Kachel oder Fremdwährung. Preise ohne Enddatum
 verschwinden nach 7 Tagen. Ein neuer Import für denselben Händler und Markt ersetzt den alten.
 
+**D-19 · Alle Angebote statt nur Berlin (Noel, 24.10.2026).** Die Region der Person filtert nicht mehr.
+Jedes Angebot trägt sein Gebiet (`Coverage`), und die App zeigt es an. Um den Preisvergleich ehrlich zu
+halten, konkurrieren nur bundesweite, regionale und Angebote ohne Gebietsangabe um „Bester Preis“ und
+„Günstigstes“. Preise einzelner Märkte stehen in einem eigenen Abschnitt „Einzelne Märkte“ mit Ort. Sonst
+wäre ein Regalpreis aus einer anderen Stadt oft der Sieger. Optional gibt es „Nur meine Gegend“ (PLZ).
+Regionale Angebote zählen mit zum Vergleich, weil sie für die Kette im ganzen Gebiet gelten; ihr Gebiet
+steht dabei. ALDI ist in ALDI Nord und ALDI Süd getrennt. Alte Caches werden weiter gelesen.
+
 ## Annahmen
 
 * Berlin liegt im ALDI-Nord-Gebiet; EDEKA Berlin gehört zur Region Minden-Hannover.

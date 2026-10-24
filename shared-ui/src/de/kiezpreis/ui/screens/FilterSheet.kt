@@ -108,9 +108,13 @@ fun FilterSheet(controller: AppController, visible: Boolean, bottomInset: Paddin
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    SettingSwitchRow("Nur für Berlin bestätigte Preise", "Blendet Angebote ohne belegte Berliner Gültigkeit aus.", f.onlyConfirmedBerlin) {
-                        controller.filters = f.copy(onlyConfirmedBerlin = it)
-                    }
+                    val home = controller.user.prefs.value.postalCode
+                    SettingSwitchRow(
+                        "Nur meine Gegend",
+                        if (home == null) "Gib zuerst in den Einstellungen deine Postleitzahl an."
+                        else "Preise einzelner Märkte nur aus ${de.kiezpreis.core.region.PostalCodes.areaLabel(home)}. Bundesweite und regionale Angebote bleiben.",
+                        f.nearPostalCode != null, enabled = home != null,
+                    ) { controller.toggleNearby() }
                     SettingSwitchRow("Nur mit belegtem Rabatt", "Nur wenn die Quelle einen früheren Preis nennt.", f.onlyWithDiscount) {
                         controller.filters = f.copy(onlyWithDiscount = it)
                     }

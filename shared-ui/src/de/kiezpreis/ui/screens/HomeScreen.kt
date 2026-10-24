@@ -54,7 +54,7 @@ import de.kiezpreis.core.logic.ValidityRules
 import de.kiezpreis.core.logic.ValidityStatus
 import de.kiezpreis.core.model.Category
 import de.kiezpreis.core.model.Retailer
-import de.kiezpreis.core.region.RegionalRules
+import de.kiezpreis.core.region.CoverageRules
 import de.kiezpreis.core.search.Grouping
 import de.kiezpreis.ui.AppController
 import de.kiezpreis.ui.Labels
@@ -94,7 +94,7 @@ fun HomeContent(
     val today = controller.today()
     val current = remember(data.offers, today) { data.offers.filter { ValidityRules.isCurrent(it, today) } }
     val topDeals = remember(current) {
-        Grouping.group(current.filter { RegionalRules.isConfirmedForBerlin(it) && ValidityRules.status(it, today) == ValidityStatus.ACTIVE })
+        Grouping.group(current.filter { CoverageRules.isComparable(it) && ValidityRules.status(it, today) == ValidityStatus.ACTIVE })
             .mapNotNull { g -> leadOffer(g, today).let { o -> PriceMath.discountPercent(o)?.let { g to it } } }
             .sortedByDescending { it.second }
             .take(8)
@@ -148,14 +148,14 @@ fun HomeContent(
                         PrimaryButton("Erneut versuchen", icon = Icons.Rounded.Sync) { controller.refresh(force = true) }
                     }
                 } else {
-                    StateMessage(Icons.Rounded.Inbox, "Noch keine Daten", "Aktiviere mindestens eine Datenquelle, um Berliner Preise zu sehen.") {
+                    StateMessage(Icons.Rounded.Inbox, "Noch keine Daten", "Aktiviere mindestens eine Datenquelle, um Preise zu sehen.") {
                         PrimaryButton("Datenquellen einrichten") { controller.selectTab(Tab.SETTINGS); controller.sourcesScreenOpen = true }
                     }
                 }
             }
         }
         if (topDeals.isNotEmpty()) {
-            item { Spacer(Modifier.height(12.dp)); SectionHeader("Starke Angebote in Berlin", action = "Alle") { controller.query = ""; controller.sort = de.kiezpreis.core.search.SortOrder.DISCOUNT; controller.startSearch(focus = false) } }
+            item { Spacer(Modifier.height(12.dp)); SectionHeader("Starke Angebote", action = "Alle") { controller.query = ""; controller.sort = de.kiezpreis.core.search.SortOrder.DISCOUNT; controller.startSearch(focus = false) } }
             item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(topDeals, key = { it.key }) { g -> DealCard(g, today) { controller.openProduct(g) } }
@@ -191,7 +191,7 @@ fun HomeContent(
                 FavoriteMiniRow(f, group?.let { leadOffer(it, today) }?.price, group?.let { leadOffer(it, today).retailer }) { controller.openFavorite(f) }
             }
         }
-        if (data.hasAnyData) item { Spacer(Modifier.height(8.dp)); SectionHeader("Händler in Berlin") }
+        if (data.hasAnyData) item { Spacer(Modifier.height(8.dp)); SectionHeader("Händler") }
         if (data.hasAnyData) item {
             LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(Retailer.supermarkets) { r ->
@@ -202,7 +202,7 @@ fun HomeContent(
         }
         item {
             Text(
-                "Kiezpreis zeigt nur Preise, die eine Quelle belegt. Nicht für Berlin bestätigte Angebote sind gekennzeichnet.",
+                "Kiezpreis zeigt nur Preise, die eine Quelle belegt. Bei jedem Angebot steht, wo es gilt: bundesweit, in einem Gebiet oder nur in einem Markt.",
                 style = MaterialTheme.typography.bodySmall, color = c.textTertiary,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
             )
@@ -216,9 +216,9 @@ private fun StatusLine(data: DataState, today: java.time.LocalDate, controller: 
     val last = data.lastSuccessfulUpdate
     val text = when {
         data.isRefreshing -> "Aktualisiere …"
-        data.onlySampleData -> "Angebote in Berlin · Beispielmodus"
-        last != null -> "Berlin · Stand " + Labels.timestamp(last, today) + if (data.sources.any { it.enabled && it.isStale }) " (veraltet)" else ""
-        else -> "Angebote in Berlin"
+        data.onlySampleData -> "Beispielmodus"
+        last != null -> "Stand " + Labels.timestamp(last, today) + if (data.sources.any { it.enabled && it.isStale }) " (veraltet)" else ""
+        else -> "Aktuelle Angebote"
     }
     Text(
         text, style = MaterialTheme.typography.bodyMedium, color = c.textSecondary,
@@ -236,7 +236,7 @@ private fun RegionChip(postalCode: String?, onClick: () -> Unit) {
     ) {
         Icon(Icons.Rounded.Place, null, tint = c.accent, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(4.dp))
-        Text(if (postalCode != null) "Berlin $postalCode" else "Berlin", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
+        Text(postalCode ?: "Alle Orte", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
     }
 }
 
@@ -281,7 +281,7 @@ private fun FavoriteMiniRow(f: Favorite, price: de.kiezpreis.core.model.Cents?, 
         Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(f.title, style = MaterialTheme.typography.titleSmall, maxLines = 1)
-                Text(if (retailer != null) "günstigst bei ${retailer.shortName}" else "aktuell kein Berliner Preis", fontSize = 12.sp, color = c.textTertiary)
+                Text(if (retailer != null) "günstigst bei ${retailer.shortName}" else "aktuell kein Preis", fontSize = 12.sp, color = c.textTertiary)
             }
             if (price != null) PriceText(price, size = 18.sp)
         }

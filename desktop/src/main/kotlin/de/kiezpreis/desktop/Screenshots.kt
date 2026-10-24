@@ -42,11 +42,15 @@ fun main(args: Array<String>) {
         "10_settings" to { c -> c.selectTab(Tab.SETTINGS) },
         "11_sources" to { c -> c.selectTab(Tab.SETTINGS); c.sourcesScreenOpen = true },
         "12_search_proteinpulver" to { c -> c.query = "Proteinpulver"; c.selectTab(Tab.SEARCH) },
+        "16_search_nearby" to { c ->
+            c.user.setPostalCode("10245")
+            c.query = "Monster Ultra White"; c.toggleNearby(); c.selectTab(Tab.SEARCH)
+        },
         "14_import_review" to { c -> c.selectTab(Tab.SETTINGS); c.sourcesScreenOpen = true; capture(c) },
         "15_sources_after_import" to { c ->
             c.selectTab(Tab.SETTINGS); c.sourcesScreenOpen = true; capture(c)
             val draft = c.importDraft!!
-            c.confirmImport(draft.items.dropLast(1), de.kiezpreis.core.importer.MarketChoice.BerlinMarket("13591", "REWE Heerstr."))
+            c.confirmImport(draft.items.dropLast(1), de.kiezpreis.core.importer.MarketChoice.Market("13591", "REWE Heerstr."))
         },
     )
     for (mode in listOf(ThemeMode.DARK, ThemeMode.LIGHT)) {

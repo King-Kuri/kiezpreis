@@ -144,8 +144,8 @@ class AppController(
         testResults = testResults + (id to "Teste …")
         scope.launch {
             val text = when (val r = offers.test(id)) {
-                is FetchResult.Success -> "Erreichbar: ${Labels.count(r.offers.size, "Berliner Preis", "Berliner Preise")} gelesen" +
-                    if (r.rejected > 0) ", ${r.rejected} verworfen (außerhalb Berlins oder unvollständig)" else ""
+                is FetchResult.Success -> "Erreichbar: ${Labels.count(r.offers.size, "Preis", "Preise")} gelesen" +
+                    if (r.rejected > 0) ", ${r.rejected} verworfen (ohne Ort, Fremdwährung oder unvollständig)" else ""
                 is FetchResult.Failure -> "${r.reason.label}: ${r.message}"
             }
             testResults = testResults + (id to text)
@@ -186,7 +186,7 @@ class AppController(
         val batch = WebImport.toBatch(draft, selected, market, now()).getOrElse { return it.message ?: "Übernahme nicht möglich" }
         imports.save(batch)
         importMessage = "${Labels.count(batch.offers.size, "Preis", "Preise")} von ${batch.retailer.displayName} übernommen" +
-            (batch.store?.let { " · ${it.name}" } ?: " · Berlin nicht bestätigt")
+            (batch.store?.let { " · ${it.name}" } ?: " · ${WebImport.chainArea(batch.retailer) ?: "Gebiet unbekannt"}")
         closeBrowser()
         sourcesScreenOpen = true
         scope.launch { offers.refresh(force = true, context = FetchContext(now(), user.prefs.value.postalCode), only = setOf(WebImport.SOURCE_ID)) }
@@ -199,7 +199,17 @@ class AppController(
         scope.launch { offers.refresh(force = true, context = FetchContext(now(), null), only = setOf(WebImport.SOURCE_ID)) }
     }
 
-    /** Product group for a key, built from all current Berlin offers (not limited by search filters). */
+    /** "Nur meine Gegend": needs a postal code; without one the settings open instead. */
+    fun toggleNearby() {
+        val pc = user.prefs.value.postalCode
+        when {
+            filters.nearPostalCode != null -> filters = filters.copy(nearPostalCode = null)
+            pc != null -> filters = filters.copy(nearPostalCode = pc)
+            else -> { filterSheetOpen = false; selectTab(Tab.SETTINGS) }
+        }
+    }
+
+    /** Product group for a key, built from all current offers (not limited by search filters). */
     fun resolveGroup(productKey: String, all: List<Offer>): ProductGroup? {
         val current = all.filter { de.kiezpreis.core.logic.ValidityRules.isCurrent(it, today()) }
         return Grouping.group(current).firstOrNull { it.key == productKey }

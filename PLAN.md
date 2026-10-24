@@ -13,20 +13,24 @@ Stand: 24.10.2026. ✅ fertig und getestet · 🟡 implementiert, Prüfung offen
 * ✅ Startseite, Suche mit Filter-Sheet, Ergebnisliste, Produktdetail, Merkliste, Einstellungen, Datenquellen
 * ✅ Beispieldaten, durchgehend gekennzeichnet
 * ✅ Zustände: lädt, keine Daten, Quelle nicht erreichbar, kein Treffer, weggefiltert, kein Preis
-* ✅ 29 Screenshots (14 Ansichten in Dark und Light, plus Leerzustand) automatisch gerendert
+* ✅ 31 Screenshots (15 Ansichten in Dark und Light, plus Leerzustand) automatisch gerendert
 * 🟡 Debug-APK über GitHub Actions; Start auf echtem Gerät noch nicht beobachtet
 
 ## Phase 3 – Echte Daten
-* 🟡 Open Prices: Adapter, Validierung, Berlin-Filter, Cache, Fehlerzustände mit Tests; Live-Abruf auf Gerät prüfen
+* 🟡 Open Prices: Adapter, Validierung, Ort je Preis, Cache, Fehlerzustände mit Tests; Live-Abruf auf Gerät prüfen
 * ⬜ Lidl-Prospekt-Adapter (experimentell, nur strukturierte Artikel)
 * ⬜ ALDI-Nord-Adapter (experimentell)
 * ✅ Entscheidung Noel (24.10.2026): WebView-Weg ja → D-17
 * 🟡 Übernahme von Händlerseiten (alle 7 Händler): sichtbare WebView, Erfassung auf Knopfdruck, strenge
-  Erkennung, Vorschau mit Haken, Marktangabe per Berliner PLZ; Kern mit Tests, auf echten Händlerseiten noch nicht erprobt
+  Erkennung, Vorschau mit Haken, Marktangabe per PLZ; Kern mit Tests, auf echten Händlerseiten noch nicht erprobt
 * ⬜ Produktbilder laden, wenn eine Quelle sie liefert (Coil)
 
+## Umbau auf alle Angebote (D-19) ✅
+* ✅ Gebietsmodell, Bestpreis ohne Einzelmärkte, Abschnitt „Einzelne Märkte“, Filter „Nur meine Gegend“
+* ✅ Open Prices deutschlandweit, ALDI Nord und ALDI Süd getrennt, Übernahme mit jeder deutschen PLZ
+
 ## Phase 4 – Erweiterte Funktionen
-* ✅ Filter, Sortierung, Merkliste, PLZ (nur Berlin), Händlerpräferenzen, Offline-Cache
+* ✅ Filter, Sortierung, Merkliste, PLZ („Nur meine Gegend“), Händlerpräferenzen, Offline-Cache
 * ⬜ Preisalarme mit WorkManager (nur mit regelmäßig prüfbarer Quelle, siehe ARCHITECTURE.md)
 * ⬜ PLZ für filialgenaue Quellen nutzen (Entfernung/Bezirk)
 
@@ -38,17 +42,17 @@ Stand: 24.10.2026. ✅ fertig und getestet · 🟡 implementiert, Prüfung offen
 
 ## Testprotokoll
 
-`./gradlew :core:test`, 57 Tests, alle grün (24.10.2026):
+`./gradlew :core:test`, 59 Tests, alle grün (24.10.2026):
 
 | Testklasse | Prüft |
 |---|---|
 | PackSizeParserTest | REWE-Texte mit Grundpreis in Klammern, Kästen „20 x 0,5 l“, ×, g/kg/cl/Stück, Bereiche und Mehrdeutiges → unbekannt |
 | PriceMathTest | Grundpreis €/l, €/kg, €/Stück, Rundung, Mehrfachpackung; Rabatt nur mit höherem Vergleichspreis, abgerundet |
-| RegionTest | Berliner PLZ, Brandenburg (Potsdam, Schönefeld, Dahlewitz), Stadtname vs. PLZ, gemischte Filialen |
+| RegionTest | Berliner PLZ, deutsche PLZ gültig/ungültig, Gegend (Berlin als Ganzes, Potsdam eigenes Gebiet), Einzelmärkte nicht im Bestpreis, „Nur meine Gegend“ |
 | ValidityTest | aktiv/abgelaufen/kommend/unbekannt, Labels, Beobachtungen nach 21 Tagen abgelaufen |
 | SearchEngineTest | Varianten getrennt, Potsdam ausgeschlossen, kommende Angebote, Grundpreis-Sieger, Umlaute, Tippfehler, Synonyme, Filter, „weggefiltert“ vs. „nichts gefunden“, Sortierung, fehlender Preis |
 | OpenPricesSourceTest | Mapping, Brandenburg/CHF/Duplikat/leerer Name/„Netto“ verworfen, Preis pro kg, Netzwerk-, HTTP-, 429- und Parse-Fehler, Abfrage-URL |
-| WebImportTest | Preistexte („1,99 €“, „-,99“, „2,-“; Datum, nackte Zahl, zwei Preise → verworfen), schema.org-Produkt, verschachtelte Seitendaten mit Cent-Feldern, Streich- und 30-Tage-Preis, Pfand/App-Bedingungen, mehrdeutige Ganzzahlen/CHF/zu teuer verworfen, Kacheln mit zwei Preisen verworfen, Händler-Domains exakt (kein ALDI Süd, kein `rewe.de.evil.example`), Berliner Markt → filialgenau, Potsdam abgelehnt, ohne Markt → nicht bestätigt, Preise ohne Datum nach 7 Tagen weg, Neuimport ersetzt alten |
+| WebImportTest | Preistexte („1,99 €“, „-,99“, „2,-“; Datum, nackte Zahl, zwei Preise → verworfen), schema.org-Produkt, verschachtelte Seitendaten mit Cent-Feldern, Streich- und 30-Tage-Preis, Pfand/App-Bedingungen, mehrdeutige Ganzzahlen/CHF/zu teuer verworfen, Kacheln mit zwei Preisen verworfen, Händler-Domains exakt (ALDI Süd ja, kein `rewe.de.evil.example`), Markt mit PLZ → einzelner Markt (auch Potsdam), ungültige PLZ abgelehnt, ohne Markt → Gebiet unbekannt bzw. ALDI-Gebiet, Preise ohne Datum nach 7 Tagen weg, Neuimport ersetzt alten |
 | RepositoryTest | Quelle fällt aus → Cache bleibt, keine Ersatzwerte, 3 Versuche; nicht wiederholbare Fehler; Neustart lädt Cache; Merkliste/Verlauf/PLZ überleben Neustart; kaputte Dateien |
 
 Nicht automatisiert geprüft: Live-Abruf von Open Prices aus der App (Container hat keinen Zugang;

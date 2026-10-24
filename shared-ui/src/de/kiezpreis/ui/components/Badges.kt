@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Public
@@ -32,7 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import de.kiezpreis.core.model.BerlinAvailability
+import de.kiezpreis.core.model.Coverage
 import de.kiezpreis.core.model.Offer
 import de.kiezpreis.core.model.Retailer
 import de.kiezpreis.ui.Labels
@@ -91,16 +92,15 @@ fun Pill(
     }
 }
 
-/** Berlin validity at a glance. Calm for confirmed cases, amber only where the user must take note. */
+/** Where an offer applies, at a glance. Calm for chain-wide offers, amber only where the user must take note. */
 @Composable
 fun AvailabilityPill(offer: Offer, modifier: Modifier = Modifier) {
     val c = Kiez.colors
     val (fg, bg, icon) = when (offer.availability) {
-        BerlinAvailability.BERLIN_WIDE -> Triple(c.textSecondary, c.divider, Icons.Rounded.CheckCircle)
-        BerlinAvailability.NATIONAL_CONFIRMED -> Triple(c.textSecondary, c.divider, Icons.Rounded.Public)
-        BerlinAvailability.STORE_SPECIFIC -> Triple(c.info, c.infoSoft, Icons.Rounded.Place)
-        BerlinAvailability.UNCONFIRMED -> Triple(c.caution, c.cautionSoft, Icons.Rounded.HelpOutline)
-        BerlinAvailability.OUTSIDE_BERLIN -> Triple(c.danger, c.cautionSoft, Icons.Rounded.HelpOutline)
+        Coverage.NATIONAL -> Triple(c.textSecondary, c.divider, Icons.Rounded.Public)
+        Coverage.REGIONAL -> Triple(c.textSecondary, c.divider, Icons.Rounded.Map)
+        Coverage.STORE -> Triple(c.info, c.infoSoft, Icons.Rounded.Place)
+        Coverage.UNKNOWN -> Triple(c.caution, c.cautionSoft, Icons.Rounded.HelpOutline)
     }
     Pill(Labels.availabilityShort(offer), fg, bg, icon, modifier)
 }

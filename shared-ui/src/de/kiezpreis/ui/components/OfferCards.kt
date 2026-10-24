@@ -55,7 +55,7 @@ fun ProductResultCard(
 ) {
     val c = Kiez.colors
     val lead = leadOffer(group, today)
-    val crowned = group.offers.size > 1 && group.cheapestComparable { ValidityRules.status(it, today) != ValidityStatus.UPCOMING } != null
+    val crowned = group.comparableOffers.size > 1 && group.cheapestComparable { ValidityRules.status(it, today) != ValidityStatus.UPCOMING } != null
     val discount = PriceMath.discountPercent(lead)
     val unit = PriceMath.unitPrice(lead)
     FrostCard(modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).clickable(role = Role.Button, onClick = onClick)) {

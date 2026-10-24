@@ -14,9 +14,9 @@
 │ theme/: Farben Dark/Light, Typografie, Motion, Glas-Einstellungen      │
 └───────────────┬────────────────────────────────────────────────────────┘
 ┌───────────────▼──────────── core (reines Kotlin) ──────────────────────┐
-│ model/   Retailer, Offer, PackSize, Cents, BerlinAvailability, Store …  │
+│ model/   Retailer, Offer, PackSize, Cents, Coverage, Store …            │
 │ logic/   PackSizeParser, PriceMath (Grundpreis, Rabatt), ValidityRules  │
-│ region/  Berlin (PLZ), RegionalRules (Klassifikation, Sichtbarkeit)     │
+│ region/  PostalCodes, Berlin, CoverageRules (Vergleich, Gegend)        │
 │ search/  TextNormalizer, Fuzzy, ProductIdentity/Grouping, SearchEngine  │
 │ data/    OfferSource-Adapter, OfferRepository (Cache, Retry, Status),   │
 │          JsonFileStore, UserDataRepository, SourceCatalog               │
@@ -35,7 +35,7 @@ Abhängigkeiten zeigen nur nach unten. `core` kennt weder Android noch Compose u
    „Statt“-Preise, die nicht höher als der aktuelle Preis sind.
 4. Erfolgreiche Ergebnisse werden je Quelle als JSON gespeichert (`cache_<quelle>.json`). Bei Fehlern bleibt der
    letzte Stand mit seinem Zeitstempel sichtbar, die Quelle steht auf „Fehler“.
-5. `DataState` (StateFlow) enthält alle Berliner Angebote, Quellenstatus und Refresh-Zustand.
+5. `DataState` (StateFlow) enthält alle Angebote, Quellenstatus und Refresh-Zustand.
    Angebote mit `OUTSIDE_BERLIN` gelangen nie in diesen Zustand.
 6. Die UI berechnet Suche, Gruppierung und Sortierung aus `DataState` mit `SearchEngine`.
 
@@ -54,8 +54,10 @@ Abhängigkeiten zeigen nur nach unten. `core` kennt weder Android noch Compose u
 * **Fairer Preissieger** (`ProductGroup.cheapestComparable`): gleiche Packung → niedrigster Preis;
   verschiedene Packungen → niedrigster Grundpreis, nur wenn alle einen Grundpreis derselben Dimension
   haben; sonst kein Sieger.
-* **Region**: `Region`-Interface mit `Berlin` als einziger Implementierung. Eine weitere Stadt wäre eine
-  weitere Implementierung plus Quellen-Parameter, ohne Umbau des Modells.
+* **Gebiet** (`Coverage`): NATIONAL, REGIONAL (mit `area`), STORE (mit Filialen), UNKNOWN. Es wird nichts
+  nach Region ausgeblendet. `CoverageRules.isComparable` lässt Einzelmarktpreise nicht um den Bestpreis
+  konkurrieren. `isNearby` erfüllt „Nur meine Gegend“: Einzelmarktpreise nur aus derselben Gegend
+  (Berlin als Ganzes, sonst zweistellige PLZ-Region), alles andere bleibt.
 
 ## Lokal vs. Server
 
@@ -85,7 +87,7 @@ Karten im Inhalt sind leicht transparent ohne Unschärfe, damit Text immer lesba
 * WorkManager, `PeriodicWorkRequest` alle 12 h, Constraint „Netzwerk verbunden“, Akku nicht niedrig.
 * Benachrichtigungen erst nach Abfrage von `POST_NOTIFICATIONS` (Android 13+).
 * Ein Alarm ist nur auswählbar, wenn mindestens eine aktivierte, nicht experimentelle Quelle das Produkt
-  regelmäßig liefern kann, und prüft nur Angebote mit bestätigter Berliner Gültigkeit (oder kennzeichnet sie).
+  regelmäßig liefern kann, und prüft nur Angebote, die in der Gegend der Person gelten (oder kennzeichnet sie).
 * Bis dahin zeigt die App „Preisalarm in Vorbereitung“ und speichert keine Alarme.
 
 ## Fehlerprotokolle

@@ -1,12 +1,12 @@
 # Kiezpreis
 
-Android-App zum Suchen und Vergleichen aktueller Supermarktpreise **in Berlin**.
+Android-App zum Suchen und Vergleichen aktueller Supermarktpreise in Deutschland. Bei jedem Angebot steht, wo es gilt.
 Kotlin, Jetpack Compose, Material 3, eigenständige „Liquid Glass“-Gestaltung in Dark und Light Mode.
 
-> **Stand (Phase 2, 24.10.2026):** Lauffähiger Prototyp mit vollständiger Navigation, Suche, Filtern,
-> Produktdetail, Merkliste und Einstellungen. Angezeigt werden klar gekennzeichnete **Beispieldaten**
-> und, als erste echte Quelle, **Open Prices** (offene, von Nutzern erfasste Berliner Preise).
-> Prospektangebote der Händler sind noch **nicht** angebunden, siehe [DATA_SOURCES.md](DATA_SOURCES.md).
+> **Stand (24.10.2026, v0.3.0):** Lauffähiger Prototyp mit Navigation, Suche, Filtern, Produktdetail,
+> Merkliste und Einstellungen. Datenquellen: klar gekennzeichnete **Beispieldaten**, **Open Prices**
+> (von Nutzern erfasste Regalpreise aus ganz Deutschland) und die **Übernahme von Händlerseiten** in der App
+> (experimentell). Bis 0.2 war die App auf Berlin begrenzt; seit 0.3 zeigt sie alle Angebote (D-19).
 
 ## Was die App heute kann
 
@@ -14,11 +14,11 @@ Kotlin, Jetpack Compose, Material 3, eigenständige „Liquid Glass“-Gestaltun
 |---|---|
 | Startseite mit Suche, starken Angeboten, Kategorien, Verlauf, Merkliste, Händlern | fertig, getestet (Screenshots) |
 | Suche: Umlaute, Bindestriche, Tippfehler, Synonyme, Varianten-Trennung | fertig, Unit-Tests |
-| Filter (Händler, Kategorie, Höchstpreis, Berlin bestätigt, Rabatt, Beobachtungen) und Sortierung (Relevanz, Preis, Grundpreis, Rabatt, Endet bald) | fertig, Unit-Tests |
+| Filter (Händler, Kategorie, Höchstpreis, Nur meine Gegend, Rabatt, Beobachtungen) und Sortierung (Relevanz, Preis, Grundpreis, Rabatt, Endet bald) | fertig, Unit-Tests |
 | Grundpreis- und Rabattberechnung nur mit belegten Daten | fertig, Unit-Tests |
-| Berliner Gültigkeit in vier Klassen, Ausschluss von Preisen außerhalb Berlins | fertig, Unit-Tests |
+| Gültigkeitsgebiet je Angebot (bundesweit, Gebiet, einzelner Markt, unbekannt); Einzelmarktpreise zählen nicht beim Bestpreis | fertig, Unit-Tests |
 | Produktdetail mit fairem Preissieger, Packungsgrößen, Filialen, Quelle, Zeitraum | fertig |
-| Merkliste (lokal), Suchverlauf, Postleitzahl (nur Berlin), bevorzugte Händler, Theme, Bewegung/Transparenz reduzieren | fertig, Persistenz getestet |
+| Merkliste (lokal), Suchverlauf, Postleitzahl (für „Nur meine Gegend“), bevorzugte Händler, Theme, Bewegung/Transparenz reduzieren | fertig, Persistenz getestet |
 | Datenquellen einzeln an/aus, Status, Verbindungstest, Cache mit Offline-Stand | fertig, Unit-Tests |
 | Open Prices als echte Quelle | implementiert, mit Testdaten geprüft; Live-Abruf nur auf dem Gerät möglich (siehe unten) |
 | Preisalarme | **nicht aktiv**, bewusst nur als „in Vorbereitung“ angezeigt |
@@ -52,7 +52,7 @@ bauen dann auch ohne Googles Maven-Repository (Hintergrund: [DECISIONS.md](DECIS
 ## Projektstruktur
 
 ```
-core/        reines Kotlin: Modelle, Preislogik, Berlin-Regeln, Suche, Quellen-Adapter, Speicher, Tests
+core/        reines Kotlin: Modelle, Preislogik, Gebietsregeln, Suche, Quellen-Adapter, Speicher, Tests
 shared-ui/   Compose-Oberfläche (Screens, Komponenten, Designsystem), von app und desktop kompiliert
 app/         Android-App: Activity, Haze-Unschärfe, Insets, Back-Geste, Ressourcen
 desktop/     Entwicklungs-Vorschau und Screenshot-Renderer (wird nicht ausgeliefert)

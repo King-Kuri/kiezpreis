@@ -81,7 +81,7 @@ fun FavoritesContent(controller: AppController, data: DataState, favorites: List
             item {
                 StateMessage(
                     Icons.Rounded.BookmarkBorder, "Noch nichts gemerkt",
-                    "Öffne ein Produkt und tippe auf das Lesezeichen. Hier siehst du dann, wo es in Berlin gerade am günstigsten ist.",
+                    "Öffne ein Produkt und tippe auf das Lesezeichen. Hier siehst du dann, wo es gerade am günstigsten ist.",
                 ) { PrimaryButton("Produkte suchen") { controller.startSearch() } }
             }
             return@LazyColumn
@@ -106,7 +106,7 @@ fun FavoritesContent(controller: AppController, data: DataState, favorites: List
                         Text(f.title, style = MaterialTheme.typography.titleSmall, maxLines = 2)
                         Spacer(Modifier.padding(top = 4.dp))
                         if (lead == null) {
-                            Pill("Aktuell kein Berliner Preis", c.textSecondary, c.divider)
+                            Pill("Aktuell kein Preis", c.textSecondary, c.divider)
                         } else {
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 AvailabilityPill(lead)

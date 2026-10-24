@@ -14,7 +14,7 @@ import de.kiezpreis.core.importer.PriceText
 import de.kiezpreis.core.importer.WebImport
 import de.kiezpreis.core.importer.WebImportSource
 import de.kiezpreis.core.importer.WebImportStore
-import de.kiezpreis.core.model.BerlinAvailability
+import de.kiezpreis.core.model.Coverage
 import de.kiezpreis.core.model.Category
 import de.kiezpreis.core.model.Cents
 import de.kiezpreis.core.model.OfferCondition
@@ -142,7 +142,7 @@ class WebImportTest {
         assertEquals(Retailer.REWE, WebImport.retailerForHost("www.rewe.de"))
         assertEquals(Retailer.KAUFLAND, WebImport.retailerForHost("filiale.kaufland.de"))
         assertEquals(Retailer.NETTO_MD, WebImport.retailerForHost("www.netto-online.de"))
-        assertNull(WebImport.retailerForHost("www.aldi-sued.de"), "ALDI Süd does not serve Berlin")
+        assertEquals(Retailer.ALDI_SUED, WebImport.retailerForHost("www.aldi-sued.de"))
         assertNull(WebImport.retailerForHost("rewe.de.evil.example"))
         assertNull(WebImport.retailerForHost("notrewe.de"))
     }
@@ -152,24 +152,35 @@ class WebImportTest {
         val p = page(embedded = listOf("""{"market":{"name":"REWE Heerstr.","zipCode":"13591"},"items":[{"name":"Butter","price":"1,79"}]}"""))
         val draft = WebImport.draft(p, now)
         assertEquals(listOf("13591"), draft.detectedPostalCodes)
-        val batch = WebImport.toBatch(draft, draft.items, MarketChoice.BerlinMarket("13591", "REWE Heerstr."), now).getOrThrow()
+        val batch = WebImport.toBatch(draft, draft.items, MarketChoice.Market("13591", "REWE Heerstr."), now).getOrThrow()
         val offer = batch.offers.single()
-        assertEquals(BerlinAvailability.STORE_SPECIFIC, offer.availability)
+        assertEquals(Coverage.STORE, offer.availability)
         assertEquals("13591", offer.stores.single().postalCode)
         assertEquals(WebImport.SOURCE_ID, offer.sourceId)
         assertEquals(false, offer.isSample)
 
         val unknown = WebImport.toBatch(draft, draft.items, MarketChoice.Unknown, now).getOrThrow()
-        assertEquals(BerlinAvailability.UNCONFIRMED, unknown.offers.single().availability)
+        assertEquals(Coverage.UNKNOWN, unknown.offers.single().availability)
 
-        assertTrue(WebImport.toBatch(draft, draft.items, MarketChoice.BerlinMarket("14467", null), now).isFailure, "Potsdam is not Berlin")
+        val potsdam = WebImport.toBatch(draft, draft.items, MarketChoice.Market("14467", null), now).getOrThrow().offers.single()
+        assertEquals(Coverage.STORE, potsdam.availability)
+        assertNull(potsdam.stores.single().city)
+        assertTrue(WebImport.toBatch(draft, draft.items, MarketChoice.Market("1234", null), now).isFailure, "invalid postal code")
     }
 
     @Test
     fun pagesOfOtherSitesCannotBeImported() {
-        val draft = WebImport.draft(page(url = "https://www.aldi-sued.de/angebote", responses = listOf("""[{"name":"X","price":"1,00"}]""")), now)
+        val draft = WebImport.draft(page(url = "https://www.globus.de/angebote", responses = listOf("""[{"name":"X","price":"1,00"}]""")), now)
         assertNull(draft.retailer)
         assertTrue(WebImport.toBatch(draft, draft.items, MarketChoice.Unknown, now).isFailure)
+    }
+
+    @Test
+    fun aldiWithoutMarketBelongsToItsArea() {
+        val draft = WebImport.draft(page(url = "https://www.aldi-nord.de/angebote.html", responses = listOf("""[{"name":"Butter","price":"1,79"}]""")), now)
+        val offer = WebImport.toBatch(draft, draft.items, MarketChoice.Unknown, now).getOrThrow().offers.single()
+        assertEquals(Coverage.REGIONAL, offer.availability)
+        assertEquals("ALDI-Nord-Gebiet", offer.area)
     }
 
     @Test

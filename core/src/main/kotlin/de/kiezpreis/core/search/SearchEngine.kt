@@ -7,7 +7,7 @@ import de.kiezpreis.core.model.Cents
 import de.kiezpreis.core.model.Offer
 import de.kiezpreis.core.model.PriceKind
 import de.kiezpreis.core.model.Retailer
-import de.kiezpreis.core.region.RegionalRules
+import de.kiezpreis.core.region.CoverageRules
 import java.time.LocalDate
 
 enum class SortOrder(val label: String) {
@@ -22,12 +22,13 @@ data class SearchFilters(
     val retailers: Set<Retailer> = emptySet(),
     val categories: Set<Category> = emptySet(),
     val maxPrice: Cents? = null,
-    val onlyConfirmedBerlin: Boolean = false,
+    /** "Nur meine Gegend": the user's postal code, or null for all offers. */
+    val nearPostalCode: String? = null,
     val onlyWithDiscount: Boolean = false,
     val includeObservations: Boolean = true,
 ) {
     val activeCount: Int
-        get() = listOf(retailers.isNotEmpty(), categories.isNotEmpty(), maxPrice != null, onlyConfirmedBerlin, onlyWithDiscount, !includeObservations)
+        get() = listOf(retailers.isNotEmpty(), categories.isNotEmpty(), maxPrice != null, nearPostalCode != null, onlyWithDiscount, !includeObservations)
             .count { it }
 }
 
@@ -66,10 +67,10 @@ class SearchEngine(private val today: () -> LocalDate = { LocalDate.now() }) {
     ): SearchResult {
         val queryTokens = TextNormalizer.tokens(query).filter { it.isNotBlank() }
         val day = today()
+        val near = filters.nearPostalCode
         val candidates = offers
-            .filter(RegionalRules::isVisibleInBerlin)
             .filter { ValidityRules.isCurrent(it, day) }
-            .map(RegionalRules::berlinStoresOnly)
+            .map { if (near != null) CoverageRules.nearbyStoresOnly(it, near) else it }
 
         val scored = if (queryTokens.isEmpty()) {
             candidates.map { it to (1.0 to MatchQuality.EXACT) }
@@ -92,7 +93,7 @@ class SearchEngine(private val today: () -> LocalDate = { LocalDate.now() }) {
         if (f.retailers.isNotEmpty() && offer.retailer !in f.retailers) return false
         if (f.categories.isNotEmpty() && offer.category !in f.categories) return false
         if (f.maxPrice != null && (offer.price == null || offer.price > f.maxPrice)) return false
-        if (f.onlyConfirmedBerlin && !RegionalRules.isConfirmedForBerlin(offer)) return false
+        if (f.nearPostalCode != null && !CoverageRules.isNearby(offer, f.nearPostalCode)) return false
         if (f.onlyWithDiscount && PriceMath.discountPercent(offer) == null) return false
         if (!f.includeObservations && offer.kind == PriceKind.OBSERVATION) return false
         return true

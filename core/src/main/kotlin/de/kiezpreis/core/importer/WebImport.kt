@@ -7,13 +7,14 @@ import de.kiezpreis.core.data.OfferSource
 import de.kiezpreis.core.data.SourceCatalog
 import de.kiezpreis.core.data.SourceDescriptor
 import de.kiezpreis.core.logic.PackSizeParser
-import de.kiezpreis.core.model.BerlinAvailability
+import de.kiezpreis.core.model.Coverage
 import de.kiezpreis.core.model.Category
 import de.kiezpreis.core.model.Offer
 import de.kiezpreis.core.model.Retailer
 import de.kiezpreis.core.model.Store
 import de.kiezpreis.core.model.Validity
 import de.kiezpreis.core.region.Berlin
+import de.kiezpreis.core.region.PostalCodes
 import de.kiezpreis.core.search.TextNormalizer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,16 +33,16 @@ data class ImportDraft(
     val host: String,
     val retailer: Retailer?,
     val items: List<ExtractedOffer>,
-    /** Berlin postal codes the page itself mentions as market location. Only used to prefill. */
+    /** Postal codes the page itself mentions as market location. Only used to prefill. */
     val detectedPostalCodes: List<String>,
     val capturedAt: Long,
 )
 
 /** Which market the user says the prices belong to. */
 sealed interface MarketChoice {
-    /** The user does not know or the page shows chain-wide prices: Berlin stays unconfirmed. */
+    /** The user does not know or the page shows chain-wide prices. */
     data object Unknown : MarketChoice
-    data class BerlinMarket(val postalCode: String, val name: String?) : MarketChoice
+    data class Market(val postalCode: String, val name: String?) : MarketChoice
 }
 
 /** Prices the user took over from one retailer page. */
@@ -63,6 +64,7 @@ object WebImport {
 
     private val hosts = mapOf(
         "aldi-nord.de" to Retailer.ALDI_NORD,
+        "aldi-sued.de" to Retailer.ALDI_SUED,
         "lidl.de" to Retailer.LIDL,
         "rewe.de" to Retailer.REWE,
         "edeka.de" to Retailer.EDEKA,
@@ -89,27 +91,33 @@ object WebImport {
     )
 
     /**
-     * Turns confirmed items into offers. Fails when the page is not a known Berlin retailer
-     * or the chosen market is not in Berlin; nothing is stored in that case.
+     * Turns confirmed items into offers. Fails when the page is not a known retailer or the
+     * postal code is invalid; nothing is stored in that case.
      */
     fun toBatch(draft: ImportDraft, selected: List<ExtractedOffer>, market: MarketChoice, now: Long): Result<WebImportBatch> {
         val retailer = draft.retailer ?: return Result.failure(IllegalArgumentException("Seite gehört zu keinem unterstützten Händler"))
         val store = when (market) {
             MarketChoice.Unknown -> null
-            is MarketChoice.BerlinMarket -> {
-                if (!Berlin.containsPostalCode(market.postalCode)) {
-                    return Result.failure(IllegalArgumentException("${market.postalCode} ist keine Berliner Postleitzahl"))
+            is MarketChoice.Market -> {
+                if (!PostalCodes.isValid(market.postalCode)) {
+                    return Result.failure(IllegalArgumentException("${market.postalCode} ist keine gültige Postleitzahl"))
                 }
                 Store(
                     id = "${retailer.name.lowercase()}_${market.postalCode}_${hash(market.name.orEmpty()).take(6)}",
                     retailer = retailer,
                     name = market.name?.trim()?.takeIf { it.isNotEmpty() } ?: "${retailer.shortName} ${market.postalCode}",
                     postalCode = market.postalCode,
-                    city = "Berlin",
+                    city = if (Berlin.containsPostalCode(market.postalCode)) "Berlin" else null,
                 )
             }
         }
-        val availability = if (store != null) BerlinAvailability.STORE_SPECIFIC else BerlinAvailability.UNCONFIRMED
+        // Without a market, ALDI prices still belong to one of the two ALDI areas; other chains stay unknown.
+        val area = if (store == null) chainArea(retailer) else null
+        val availability = when {
+            store != null -> Coverage.STORE
+            area != null -> Coverage.REGIONAL
+            else -> Coverage.UNKNOWN
+        }
         val offers = selected.map { e ->
             Offer(
                 id = "web_${retailer.name.lowercase()}_${hash(listOf(e.title, e.price.value, store?.id, e.validFrom).joinToString("|")).take(16)}",
@@ -125,6 +133,7 @@ object WebImport {
                 statedBasePrice = e.basePriceText,
                 validity = Validity(e.validFrom, e.validTo),
                 availability = availability,
+                area = area,
                 stores = listOfNotNull(store),
                 conditions = e.conditions.toList(),
                 imageUrl = e.imageUrl,
@@ -136,7 +145,13 @@ object WebImport {
         return Result.success(WebImportBatch(retailer, draft.pageUrl, store, now, offers))
     }
 
-    /** Distinct Berlin postal codes found under address-like keys in the page data. */
+    fun chainArea(retailer: Retailer): String? = when (retailer) {
+        Retailer.ALDI_NORD -> "ALDI-Nord-Gebiet"
+        Retailer.ALDI_SUED -> "ALDI-Süd-Gebiet"
+        else -> null
+    }
+
+    /** Distinct postal codes found under address-like keys in the page data. */
     internal fun detectPostalCodes(page: CapturedPage): List<String> {
         val found = LinkedHashSet<String>()
         val parser = kotlinx.serialization.json.Json { isLenient = true }
@@ -147,7 +162,7 @@ object WebImport {
                     val key = k.lowercase().replace("_", "")
                     if (key in POSTAL_KEYS && v is JsonPrimitive) {
                         val code = v.content.trim()
-                        if (Berlin.containsPostalCode(code)) found += code
+                        if (PostalCodes.isValid(code)) found += code
                     } else visit(v, depth + 1)
                 }
                 is JsonArray -> e.forEach { visit(it, depth + 1) }

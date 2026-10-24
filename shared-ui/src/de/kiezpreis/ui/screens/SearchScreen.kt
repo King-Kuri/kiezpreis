@@ -22,7 +22,7 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material.icons.rounded.Verified
+import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -89,9 +89,7 @@ fun SearchTopBar(controller: AppController, prefs: UserPrefs, modifier: Modifier
             }
             item { SortChip(controller) }
             item {
-                KChip("Berlin bestätigt", selected = f.onlyConfirmedBerlin, icon = Icons.Rounded.Verified) {
-                    controller.filters = f.copy(onlyConfirmedBerlin = !f.onlyConfirmedBerlin)
-                }
+                KChip("Nur meine Gegend", selected = f.nearPostalCode != null, icon = Icons.Rounded.Place) { controller.toggleNearby() }
             }
             if (prefs.preferredRetailers.isNotEmpty()) {
                 item {
@@ -150,7 +148,7 @@ fun SearchContent(controller: AppController, data: DataState, recent: List<Strin
                 Column {
                     StateMessage(
                         Icons.Rounded.SearchOff, "Kein passendes Angebot",
-                        "Für „${controller.query}“ gibt es in den aktuellen Berliner Daten keinen Treffer. Meintest du:",
+                        "Für „${controller.query}“ gibt es in den aktuellen Daten keinen Treffer. Meintest du:",
                     )
                     FlowRow(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         suggestions.forEach { s -> KChip(s) { controller.submitSearch(s) } }
@@ -166,7 +164,7 @@ fun SearchContent(controller: AppController, data: DataState, recent: List<Strin
             result.hits.isEmpty() -> item {
                 StateMessage(
                     Icons.Rounded.SearchOff, "Kein passendes Angebot",
-                    "Für „${controller.query}“ wurde in den aktuellen Berliner Daten nichts gefunden. Das heißt nicht, dass es das Produkt nirgends gibt, sondern nur, dass keine aktive Quelle einen Preis dafür kennt.",
+                    "Für „${controller.query}“ wurde in den aktuellen Daten nichts gefunden. Das heißt nicht, dass es das Produkt nirgends gibt, sondern nur, dass keine aktive Quelle einen Preis dafür kennt.",
                 )
             }
             else -> {}

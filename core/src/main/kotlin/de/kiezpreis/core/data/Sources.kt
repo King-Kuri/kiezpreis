@@ -27,8 +27,8 @@ data class SourceDescriptor(
     val retailer: Retailer?,
     val kind: SourceKind,
     val readiness: SourceReadiness,
-    /** What the source says about Berlin. */
-    val berlinCoverage: String,
+    /** Where the source's prices apply. */
+    val coverage: String,
     val license: String,
     val refreshIntervalHours: Int,
     val homepage: String?,
@@ -37,7 +37,7 @@ data class SourceDescriptor(
 
 data class FetchContext(
     val nowMillis: Long,
-    /** Optional Berlin postal code chosen by the user. */
+    /** Optional postal code chosen by the user. */
     val postalCode: String?,
 )
 

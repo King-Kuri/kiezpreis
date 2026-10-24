@@ -1,11 +1,14 @@
 package de.kiezpreis.core.model
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 
 /** Retail chains the app knows about. Knowing a chain does not mean a data source exists for it. */
 @Serializable
 enum class Retailer(val displayName: String, val shortName: String, val brandColor: Long, val website: String) {
-    ALDI_NORD("ALDI Nord", "ALDI", 0xFF00599C, "https://www.aldi-nord.de/angebote.html"),
+    ALDI_NORD("ALDI Nord", "ALDI Nord", 0xFF00599C, "https://www.aldi-nord.de/angebote.html"),
+    ALDI_SUED("ALDI Süd", "ALDI Süd", 0xFF0B2A6F, "https://www.aldi-sued.de/de/angebote.html"),
     LIDL("Lidl", "Lidl", 0xFF0050AA, "https://www.lidl.de/c/online-prospekte/s10005610"),
     REWE("REWE", "REWE", 0xFFCC071E, "https://www.rewe.de/angebote/"),
     EDEKA("EDEKA", "EDEKA", 0xFF1A4693, "https://www.edeka.de/angebote/"),
@@ -18,7 +21,7 @@ enum class Retailer(val displayName: String, val shortName: String, val brandCol
 
     companion object {
         /** Supermarkets in scope for the MVP. Drugstores are prepared but not yet integrated. */
-        val supermarkets = listOf(ALDI_NORD, LIDL, REWE, EDEKA, KAUFLAND, PENNY, NETTO_MD)
+        val supermarkets = listOf(ALDI_NORD, ALDI_SUED, LIDL, REWE, EDEKA, KAUFLAND, PENNY, NETTO_MD)
     }
 }
 
@@ -120,21 +123,24 @@ enum class PriceKind {
 }
 
 /**
- * Where an offer is valid, relative to Berlin. Stored separately from product information.
- * The four classes required by the product brief plus an explicit "outside Berlin" class that is never shown.
+ * Where an offer applies. Stored separately from product information and shown with every price,
+ * so the user can see whether an offer is local. Old names are still read from caches.
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
-enum class BerlinAvailability {
-    /** Valid in all or several Berlin stores of the chain (e.g. a regional Berlin leaflet). */
-    BERLIN_WIDE,
-    /** Only known for specific Berlin stores, listed in [Offer.stores]. */
-    STORE_SPECIFIC,
-    /** Nationally advertised; the source states it applies to all stores, which includes Berlin. */
-    NATIONAL_CONFIRMED,
-    /** Found, but the source does not tell whether Berlin stores take part. */
-    UNCONFIRMED,
-    /** Known to come from a store or region outside Berlin. Never shown as a Berlin result. */
-    OUTSIDE_BERLIN,
+enum class Coverage {
+    /** Valid in all stores of the chain in Germany, as stated by the source. */
+    @JsonNames("NATIONAL_CONFIRMED")
+    NATIONAL,
+    /** Valid in a named area, e.g. the ALDI Nord region or one EDEKA region; see [Offer.area]. */
+    @JsonNames("BERLIN_WIDE")
+    REGIONAL,
+    /** Only known for the stores listed in [Offer.stores]. */
+    @JsonNames("STORE_SPECIFIC", "OUTSIDE_BERLIN")
+    STORE,
+    /** The source does not say where the offer applies. */
+    @JsonNames("UNCONFIRMED")
+    UNKNOWN,
 }
 
 @Serializable
@@ -184,7 +190,9 @@ data class Offer(
     val validity: Validity = Validity(),
     /** For [PriceKind.OBSERVATION]: the day the price was seen. */
     val observedOn: String? = null,
-    val availability: BerlinAvailability,
+    val availability: Coverage,
+    /** For [Coverage.REGIONAL]: the area as the source names it, e.g. "ALDI-Nord-Gebiet". */
+    val area: String? = null,
     val stores: List<Store> = emptyList(),
     val conditions: List<OfferCondition> = emptyList(),
     val imageUrl: String? = null,

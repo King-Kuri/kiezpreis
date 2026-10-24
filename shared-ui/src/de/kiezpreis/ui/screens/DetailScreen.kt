@@ -50,6 +50,7 @@ import de.kiezpreis.core.logic.ValidityRules
 import de.kiezpreis.core.logic.ValidityStatus
 import de.kiezpreis.core.model.Offer
 import de.kiezpreis.core.model.PackSize
+import de.kiezpreis.core.region.CoverageRules
 import de.kiezpreis.core.model.PriceKind
 import de.kiezpreis.core.search.ProductGroup
 import de.kiezpreis.ui.AppController
@@ -101,7 +102,7 @@ fun DetailContent(controller: AppController, route: DetailRoute, data: DataState
         Column(Modifier.fillMaxSize().padding(padding)) {
             StateMessage(
                 Icons.Rounded.SearchOff, route.fallbackTitle,
-                "Aktuell liegt für dieses Produkt kein Berliner Preis vor. Es bleibt auf deiner Merkliste, solange du es nicht entfernst.",
+                "Aktuell liegt für dieses Produkt kein Preis vor. Es bleibt auf deiner Merkliste, solange du es nicht entfernst.",
             )
         }
         return
@@ -110,7 +111,9 @@ fun DetailContent(controller: AppController, route: DetailRoute, data: DataState
     val active = group.offers.filter(isActive)
     val upcoming = group.offers.filterNot(isActive)
     val best = group.cheapestComparable(isActive)
-    val bySize: List<Pair<PackSize?, List<Offer>>> = active.groupBy { it.packSize }.toList()
+    // Prices of single stores get their own section; they never compete with chain-wide offers.
+    val singleStores = active.filterNot(CoverageRules::isComparable).sortedBy { it.price?.value ?: Long.MAX_VALUE }
+    val bySize: List<Pair<PackSize?, List<Offer>>> = active.filter(CoverageRules::isComparable).groupBy { it.packSize }.toList()
         .sortedWith(
             compareBy<Pair<PackSize?, List<Offer>>> { (_, list) -> list.mapNotNull { PriceMath.unitPrice(it)?.cents?.value }.minOrNull() ?: Long.MAX_VALUE }
                 .thenBy { (_, list) -> list.mapNotNull { it.price?.value }.minOrNull() ?: Long.MAX_VALUE },
@@ -147,6 +150,18 @@ fun DetailContent(controller: AppController, route: DetailRoute, data: DataState
                 OfferRow(o, today, isBest = o.id == best?.id && group.offers.size > 1, Modifier.padding(horizontal = 16.dp))
             }
         }
+        if (singleStores.isNotEmpty()) {
+            item {
+                Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp)) {
+                    Text("Einzelne Märkte", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Preise, die nur für einen bestimmten Markt belegt sind, mit Ort. Sie zählen nicht beim besten Preis.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+            items(singleStores, key = { it.id }) { o -> OfferRow(o, today, isBest = false, Modifier.padding(horizontal = 16.dp)) }
+        }
         if (upcoming.isNotEmpty()) {
             item { Text("Demnächst", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 20.dp, top = 8.dp)) }
             items(upcoming, key = { it.id }) { o -> OfferRow(o, today, isBest = false, Modifier.padding(horizontal = 16.dp)) }
@@ -167,6 +182,7 @@ private fun BestOfferCard(best: Offer?, group: ProductGroup, today: LocalDate, m
                 Spacer(Modifier.width(10.dp))
                 Text(
                     if (group.offers.none { it.price != null }) "Die Quelle nennt keinen Preis. Kiezpreis setzt keinen Schätzwert ein."
+                    else if (group.comparableOffers.isEmpty()) "Nur Preise einzelner Märkte bekannt. Sie stehen unten mit Ort und werden nicht zum Bestpreis erklärt."
                     else "Kein eindeutiger Preissieger: Die Packungen unterscheiden sich und nicht für alle ist ein Grundpreis bekannt.",
                     style = MaterialTheme.typography.bodyMedium, color = c.textPrimary,
                 )
@@ -179,7 +195,7 @@ private fun BestOfferCard(best: Offer?, group: ProductGroup, today: LocalDate, m
     FrostCard(modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), highlight = c.deal) {
         Column(Modifier.padding(18.dp)) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                BestDealPill(text = if (group.offers.size > 1) "Bester vergleichbarer Preis" else "Einziges Angebot")
+                BestDealPill(text = if (group.comparableOffers.size > 1) "Bester vergleichbarer Preis" else "Einziges überregionales Angebot")
                 if (best.isSample) SampleTag()
             }
             Spacer(Modifier.height(14.dp))

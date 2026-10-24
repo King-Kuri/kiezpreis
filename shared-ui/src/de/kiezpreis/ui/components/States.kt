@@ -76,7 +76,7 @@ fun SampleDataBanner(modifier: Modifier = Modifier, onSettings: (() -> Unit)? = 
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Beispieldaten", style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "Preise und Filialen hier sind erfunden und dienen nur zum Ausprobieren. Echte Berliner Preise kommen aus den aktivierten Datenquellen.",
+                    "Preise und Filialen hier sind erfunden und dienen nur zum Ausprobieren. Echte Preise kommen aus den aktivierten Datenquellen.",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 if (onSettings != null) {

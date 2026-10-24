@@ -158,12 +158,10 @@ private fun RegionSection(controller: AppController, prefs: UserPrefs) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Place, null, tint = c.accent, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Berlin", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.width(8.dp))
-            Pill("einzige Region", c.textSecondary, c.divider)
+            Text("Deine Gegend", style = MaterialTheme.typography.titleMedium)
         }
         Spacer(Modifier.height(12.dp))
-        Text("Berliner Postleitzahl (optional)", style = MaterialTheme.typography.labelMedium)
+        Text("Postleitzahl (optional)", style = MaterialTheme.typography.labelMedium)
         Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -187,7 +185,7 @@ private fun RegionSection(controller: AppController, prefs: UserPrefs) {
         val message = error
         Spacer(Modifier.height(6.dp))
         Text(
-            message ?: "Wird verwendet, sobald eine Quelle filialgenaue Daten nach PLZ liefert. Aktuell filtert Kiezpreis ganz Berlin; GPS wird nie benötigt.",
+            message ?: "Kiezpreis zeigt alle Angebote. Mit PLZ kannst du in der Suche „Nur meine Gegend“ einschalten: Preise einzelner Märkte kommen dann nur aus deiner Gegend. GPS wird nie benötigt.",
             style = MaterialTheme.typography.bodySmall,
             color = if (message != null && !message.startsWith("Gespeichert")) c.danger else c.textSecondary,
         )
@@ -196,8 +194,8 @@ private fun RegionSection(controller: AppController, prefs: UserPrefs) {
 
 private fun save(controller: AppController, input: String): String =
     if (controller.user.setPostalCode(input)) {
-        if (input.isBlank()) "Gespeichert: ganz Berlin." else "Gespeichert: $input."
-    } else "„$input“ ist keine Berliner Postleitzahl."
+        if (input.isBlank()) "Gespeichert: keine PLZ." else "Gespeichert: $input (${de.kiezpreis.core.region.PostalCodes.areaLabel(input)})."
+    } else "„$input“ ist keine gültige Postleitzahl."
 
 @Composable
 private fun Group(title: String, content: @Composable () -> Unit) {
@@ -271,7 +269,7 @@ private fun SourceCard(
                     }
                 }
             }
-            Text(d.berlinCoverage, style = MaterialTheme.typography.bodySmall, color = c.textPrimary, modifier = Modifier.padding(horizontal = 18.dp))
+            Text(d.coverage, style = MaterialTheme.typography.bodySmall, color = c.textPrimary, modifier = Modifier.padding(horizontal = 18.dp))
             Spacer(Modifier.height(4.dp))
             Text(d.notes, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 18.dp))
             Text("Lizenz: ${d.license}", style = MaterialTheme.typography.bodySmall, color = c.textTertiary, modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp))

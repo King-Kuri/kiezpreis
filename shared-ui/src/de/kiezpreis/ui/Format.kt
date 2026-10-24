@@ -1,6 +1,7 @@
 package de.kiezpreis.ui
 
-import de.kiezpreis.core.model.BerlinAvailability
+import de.kiezpreis.core.model.Coverage
+import de.kiezpreis.core.model.Store
 import de.kiezpreis.core.model.Offer
 import java.time.Instant
 import java.time.LocalDate
@@ -12,27 +13,30 @@ val BerlinZone: ZoneId = ZoneId.of("Europe/Berlin")
 
 object Labels {
     fun availabilityShort(offer: Offer): String = when (offer.availability) {
-        BerlinAvailability.BERLIN_WIDE -> "Berlin"
-        BerlinAvailability.STORE_SPECIFIC -> when (offer.stores.size) {
-            0, 1 -> "Nur 1 Filiale"
-            else -> "Nur ${offer.stores.size} Filialen"
+        Coverage.NATIONAL -> "Bundesweit"
+        Coverage.REGIONAL -> offer.area ?: "Regional"
+        Coverage.STORE -> when (offer.stores.size) {
+            0 -> "Nur 1 Markt"
+            1 -> "Nur 1 Markt" + (place(offer.stores.single())?.let { " · $it" } ?: "")
+            else -> "Nur ${offer.stores.size} Märkte"
         }
-        BerlinAvailability.NATIONAL_CONFIRMED -> "Bundesweit inkl. Berlin"
-        BerlinAvailability.UNCONFIRMED -> "Berlin nicht bestätigt"
-        BerlinAvailability.OUTSIDE_BERLIN -> "Außerhalb Berlins"
+        Coverage.UNKNOWN -> "Gebiet unbekannt"
     }
 
     fun availabilityLong(offer: Offer): String = when (offer.availability) {
-        BerlinAvailability.BERLIN_WIDE ->
-            "Gilt laut Quelle in allen oder mehreren Berliner Filialen von ${offer.retailer.shortName}."
-        BerlinAvailability.STORE_SPECIFIC ->
-            "Preis nur für die genannte Filiale belegt. Andere ${offer.retailer.shortName}-Filialen können abweichen."
-        BerlinAvailability.NATIONAL_CONFIRMED ->
-            "Bundesweit beworben, laut Quelle in allen Filialen, also auch in Berlin."
-        BerlinAvailability.UNCONFIRMED ->
-            "Die Quelle sagt nicht, ob Berliner Filialen teilnehmen. Vor dem Einkauf prüfen."
-        BerlinAvailability.OUTSIDE_BERLIN -> "Nicht in Berlin gültig."
+        Coverage.NATIONAL ->
+            "Laut Quelle in allen ${offer.retailer.shortName}-Filialen in Deutschland."
+        Coverage.REGIONAL ->
+            "Gilt laut Quelle nur im Gebiet „${offer.area ?: "unbenannt"}“. Anderswo kann der Preis abweichen oder das Angebot fehlen."
+        Coverage.STORE ->
+            "Preis nur für den genannten Markt belegt. Andere ${offer.retailer.shortName}-Märkte können abweichen. " +
+                "Zählt deshalb nicht beim Vergleich des besten Preises."
+        Coverage.UNKNOWN ->
+            "Die Quelle sagt nicht, wo das Angebot gilt. Vor dem Einkauf prüfen."
     }
+
+    /** "Berlin", "München" or the postal code. */
+    fun place(store: Store): String? = store.city?.takeIf { it.isNotBlank() } ?: store.postalCode
 
     private val time = DateTimeFormatter.ofPattern("HH:mm")
     private val dayMonth = DateTimeFormatter.ofPattern("dd.MM.")

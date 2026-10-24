@@ -11,7 +11,7 @@ import de.kiezpreis.core.data.SampleOfferSource
 import de.kiezpreis.core.data.SourceCatalog
 import de.kiezpreis.core.data.SourceStatus
 import de.kiezpreis.core.data.UserDataRepository
-import de.kiezpreis.core.model.BerlinAvailability
+import de.kiezpreis.core.model.Coverage
 import de.kiezpreis.core.model.Cents
 import de.kiezpreis.core.model.Offer
 import de.kiezpreis.core.model.ReferencePrice
@@ -36,7 +36,7 @@ class RepositoryTest {
         override suspend fun fetch(context: FetchContext): FetchResult { calls++; return next() }
     }
 
-    private fun offer(id: String, price: Long?, ref: Long? = null, availability: BerlinAvailability = BerlinAvailability.STORE_SPECIFIC) = Offer(
+    private fun offer(id: String, price: Long?, ref: Long? = null, availability: Coverage = Coverage.STORE) = Offer(
         id = id, sourceId = "open_prices", retailer = Retailer.REWE, title = "Butter $id", price = price?.let(::Cents),
         referencePrice = ref?.let { ReferencePrice(Cents(it), ReferencePriceKind.STRIKE_THROUGH) },
         availability = availability, fetchedAt = 1,
@@ -81,12 +81,20 @@ class RepositoryTest {
         assertIs<SourceStatus.Disabled>(repo.state.value.sources.single().status)
     }
 
-    @Test fun `offers outside berlin never reach the state`() = runTest {
-        val source = ScriptedSource { FetchResult.Success(listOf(offer("in", 100), offer("out", 100, availability = BerlinAvailability.OUTSIDE_BERLIN)), 1) }
-        val repo = OfferRepository(listOf(source), JsonFileStore(dir))
+    @Test fun `caches from the berlin-only version are still read`() = runTest {
+        java.io.File(dir, "cache_open_prices.json").writeText(
+            """{"fetchedAt":1,"offers":[
+              {"id":"a","sourceId":"open_prices","retailer":"REWE","title":"A","price":100,"availability":"STORE_SPECIFIC","fetchedAt":1},
+              {"id":"b","sourceId":"open_prices","retailer":"REWE","title":"B","price":100,"availability":"OUTSIDE_BERLIN","fetchedAt":1},
+              {"id":"c","sourceId":"open_prices","retailer":"REWE","title":"C","price":100,"availability":"NATIONAL_CONFIRMED","fetchedAt":1},
+              {"id":"d","sourceId":"open_prices","retailer":"REWE","title":"D","price":100,"availability":"UNCONFIRMED","fetchedAt":1}]}""",
+        )
+        val repo = OfferRepository(listOf(ScriptedSource { error("not called") }), JsonFileStore(dir), clock = { 2 })
         repo.setEnabledSources(setOf("open_prices"))
-        repo.refresh(force = true)
-        assertEquals(listOf("in"), repo.state.value.offers.map { it.id })
+        assertEquals(
+            listOf(Coverage.STORE, Coverage.STORE, Coverage.NATIONAL, Coverage.UNKNOWN),
+            repo.state.value.offers.map { it.availability },
+        )
     }
 
     @Test fun `sample data is flagged as such`() = runTest {
@@ -102,7 +110,8 @@ class RepositoryTest {
         val users = UserDataRepository(store)
         users.toggleFavorite(Favorite("k1", "Kerrygold Butter", "Kerrygold", "Kerrygold", 1))
         users.addRecentSearch("Monster Ultra White")
-        assertFalse(users.setPostalCode("14467"), "Potsdam is rejected")
+        assertFalse(users.setPostalCode("1446"), "four digits are rejected")
+        assertTrue(users.setPostalCode("14467"), "any German postal code is accepted")
         assertTrue(users.setPostalCode("10245"))
         val reloaded = UserDataRepository(JsonFileStore(dir))
         assertEquals("k1", reloaded.favorites.value.single().productKey)

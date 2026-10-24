@@ -1,7 +1,7 @@
 package de.kiezpreis.core
 
 import de.kiezpreis.core.data.SampleOfferSource
-import de.kiezpreis.core.model.BerlinAvailability
+import de.kiezpreis.core.model.Coverage
 import de.kiezpreis.core.model.Category
 import de.kiezpreis.core.model.Cents
 import de.kiezpreis.core.model.Offer
@@ -35,8 +35,10 @@ class SearchEngineTest {
         // Ultra Paradise is a different flavour and must not appear as an Ultra White result.
         assertTrue(hits.none { h -> h.group.offers.any { "Paradise" in it.title } })
         val all = hits.flatMap { it.group.offers }
-        // The Potsdam store offer is outside Berlin and never shown.
-        assertTrue(all.none { it.availability == BerlinAvailability.OUTSIDE_BERLIN })
+        // The Potsdam store price is shown, but as a single-store price that never wins the comparison.
+        val potsdam = all.single { it.stores.any { s -> s.city == "Potsdam" } }
+        assertEquals(Coverage.STORE, potsdam.availability)
+        assertTrue(hits.single().group.cheapestComparable()?.id != potsdam.id)
         // Next week's ALDI offer is upcoming and shown; it is not expired.
         assertTrue(all.any { it.retailer == Retailer.ALDI_NORD })
         // Can and 4-pack share one product group, but the group knows sizes differ.
@@ -84,11 +86,18 @@ class SearchEngineTest {
         assertEquals(0, none.unfilteredMatchCount)
     }
 
-    @Test fun `only confirmed berlin filter drops unconfirmed offers`() {
-        val all = titles("Coca Cola Zero").flatMap { it.group.offers }
-        val confirmed = titles("Coca Cola Zero", SearchFilters(onlyConfirmedBerlin = true)).flatMap { it.group.offers }
-        assertTrue(all.any { it.availability == BerlinAvailability.UNCONFIRMED })
-        assertTrue(confirmed.none { it.availability == BerlinAvailability.UNCONFIRMED })
+    @Test fun `nearby filter keeps chain-wide offers and only stores in the user's area`() {
+        val all = titles("Monster Ultra White").flatMap { it.group.offers }
+        assertTrue(all.any { it.stores.any { s -> s.city == "Potsdam" } })
+        // A Berlin user: Potsdam (Brandenburg) is another area, Berlin stores stay.
+        val berlin = titles("Monster Ultra White", SearchFilters(nearPostalCode = "10245")).flatMap { it.group.offers }
+        assertTrue(berlin.none { it.stores.any { s -> s.city == "Potsdam" } })
+        assertTrue(berlin.any { it.availability == Coverage.STORE })
+        assertTrue(berlin.any { it.availability == Coverage.NATIONAL })
+        // A Munich user sees no Berlin store prices, but chain-wide ones.
+        val munich = titles("Monster Ultra White", SearchFilters(nearPostalCode = "80331")).flatMap { it.group.offers }
+        assertTrue(munich.none { it.availability == Coverage.STORE })
+        assertTrue(munich.any { it.availability == Coverage.NATIONAL })
     }
 
     @Test fun `sort by unit price puts unknown base prices last`() {
@@ -124,6 +133,6 @@ class SearchEngineTest {
 
     private fun offer(title: String, brand: String?) = Offer(
         id = title, sourceId = "t", retailer = Retailer.REWE, title = title, brand = brand, price = Cents(100),
-        availability = BerlinAvailability.BERLIN_WIDE, fetchedAt = 0,
+        availability = Coverage.REGIONAL, fetchedAt = 0,
     )
 }

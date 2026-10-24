@@ -6,7 +6,7 @@ import de.kiezpreis.core.data.FetchResult
 import de.kiezpreis.core.data.HttpClient
 import de.kiezpreis.core.data.HttpResponse
 import de.kiezpreis.core.data.OpenPricesSource
-import de.kiezpreis.core.model.BerlinAvailability
+import de.kiezpreis.core.model.Coverage
 import de.kiezpreis.core.model.Cents
 import de.kiezpreis.core.model.PriceKind
 import de.kiezpreis.core.model.Retailer
@@ -34,15 +34,16 @@ class OpenPricesSourceTest {
         val result = source.fetch(FetchContext(nowMillis = 1_793_000_000_000, postalCode = null))
         assertIs<FetchResult.Success>(result)
         val byId = result.offers.associateBy { it.id }
-        // Kept: REWE Berlin, Kaufland Berlin (discounted), Lidl Berlin bananas (per kg).
-        assertEquals(setOf("op-101", "op-103", "op-104"), byId.keys)
-        // Dropped: Dahlewitz (Brandenburg), empty name, CHF, duplicate, ambiguous "Netto".
-        assertEquals(5, result.rejected)
+        // Kept: REWE Berlin, REWE Dahlewitz (Brandenburg, shown with its location), Kaufland Berlin (discounted), Lidl bananas (per kg).
+        assertEquals(setOf("op-101", "op-102", "op-103", "op-104"), byId.keys)
+        assertEquals("Dahlewitz", byId.getValue("op-102").stores.single().city)
+        // Dropped: empty name, CHF in Zürich, duplicate, ambiguous "Netto".
+        assertEquals(4, result.rejected)
 
         val cola = byId.getValue("op-101")
         assertEquals(Retailer.REWE, cola.retailer)
         assertEquals(PriceKind.OBSERVATION, cola.kind)
-        assertEquals(BerlinAvailability.STORE_SPECIFIC, cola.availability)
+        assertEquals(Coverage.STORE, cola.availability)
         assertEquals("12209", cola.stores.single().postalCode)
         assertEquals(Cents(139), cola.price)
         assertEquals(500.0, cola.packSize!!.totalInBaseUnit)
@@ -80,7 +81,7 @@ class OpenPricesSourceTest {
         // 2026-10-24 12:00 UTC (1792843200000)
         OpenPricesSource(http).fetch(FetchContext(1792843200000L, null))
         val url = http.urls.single()
-        assertTrue("lat=52.5200" in url && "lon=13.4050" in url && "radius_km=25" in url)
+        assertTrue("lat=51.1657" in url && "lon=10.4515" in url && "radius_km=450" in url && "currency=EUR" in url, url)
         assertTrue("date__gte=2026-10-03" in url, url)
     }
 }

@@ -2,7 +2,7 @@ package de.kiezpreis.core.data
 
 import de.kiezpreis.core.model.Cents
 import de.kiezpreis.core.model.Retailer
-import de.kiezpreis.core.region.Berlin
+import de.kiezpreis.core.region.PostalCodes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,14 +63,14 @@ class UserDataRepository(private val store: JsonFileStore) {
         store.write(KEY_PREFS, UserPrefs.serializer(), _prefs.value)
     }
 
-    /** Accepts only Berlin postal codes; returns false otherwise. Empty input clears the code. */
+    /** Accepts German postal codes; returns false otherwise. Empty input clears the code. */
     fun setPostalCode(input: String): Boolean {
         val code = input.trim()
         if (code.isEmpty()) {
             updatePrefs { it.copy(postalCode = null) }
             return true
         }
-        if (!Berlin.isValidUserPostalCode(code)) return false
+        if (!PostalCodes.isValid(code)) return false
         updatePrefs { it.copy(postalCode = code) }
         return true
     }
