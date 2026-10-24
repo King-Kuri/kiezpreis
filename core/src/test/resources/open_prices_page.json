@@ -1,0 +1,33 @@
+{
+  "items": [
+    {"id": 101, "product_code": "5000112637939", "product_name": null, "price": 1.39, "currency": "EUR", "price_per": "UNIT",
+     "price_is_discounted": false, "price_without_discount": null, "date": "2026-10-09", "location_id": 77, "location_osm_id": 1234, "location_osm_type": "NODE",
+     "duplicate_of": null,
+     "product": {"code": "5000112637939", "product_name": "Coca-Cola Zero Null Zucker", "brands": "Coca-Cola", "quantity": "0,5 L", "categories_tags": ["en:beverages", "en:sodas"]},
+     "location": {"osm_name": "REWE", "osm_brand": "Rewe", "osm_address_city": "Berlin", "osm_address_postcode": "12209"}},
+    {"id": 102, "product_code": null, "product_name": null, "price": 1.15, "currency": "EUR", "price_per": "UNIT",
+     "price_is_discounted": false, "date": "2026-10-17", "location_id": 78, "location_osm_id": 999, "location_osm_type": "NODE",
+     "product": {"product_name": "No Muhh Hafer-Soja-Drink", "brands": "REWE Bio", "quantity": null},
+     "location": {"osm_name": "Rewe", "osm_brand": "Rewe", "osm_address_city": "Dahlewitz", "osm_address_postcode": "15827"}},
+    {"id": 103, "product_name": null, "price": 1.99, "currency": "EUR", "price_per": "UNIT",
+     "price_is_discounted": true, "price_without_discount": 2.99, "date": "2026-10-20", "location_id": 79, "location_osm_id": 555, "location_osm_type": "WAY",
+     "product": {"product_name": "Big Burrito Chili", "brands": "Big Burrito", "quantity": "300 g"},
+     "location": {"osm_name": "Kaufland", "osm_brand": "Kaufland", "osm_address_city": "Berlin", "osm_address_postcode": "10365"}},
+    {"id": 104, "price": 2.49, "currency": "EUR", "date": "2026-10-20", "location_id": 80, "location_osm_id": 556,
+     "product": {"product_name": "Bananen", "quantity": null}, "price_per": "KILOGRAM",
+     "location": {"osm_name": "Lidl", "osm_brand": "Lidl", "osm_address_city": "Berlin", "osm_address_postcode": "13509"}},
+    {"id": 105, "price": 0.95, "currency": "EUR", "date": "2026-10-23", "location_id": 81, "location_osm_id": 557,
+     "product": {"product_name": "", "quantity": null},
+     "location": {"osm_name": "dm", "osm_brand": "dm", "osm_address_city": "Berlin", "osm_address_postcode": "10178"}},
+    {"id": 106, "price": 3.0, "currency": "CHF", "date": "2026-10-23", "location_id": 82, "location_osm_id": 558,
+     "product": {"product_name": "Käse"},
+     "location": {"osm_name": "Coop", "osm_brand": "Coop", "osm_address_city": "Zürich", "osm_address_postcode": "8001"}},
+    {"id": 107, "price": 2.49, "currency": "EUR", "date": "2026-10-20", "location_id": 83, "location_osm_id": 559, "duplicate_of": 103,
+     "product": {"product_name": "Big Burrito Chili"},
+     "location": {"osm_name": "Kaufland", "osm_brand": "Kaufland", "osm_address_city": "Berlin", "osm_address_postcode": "10365"}},
+    {"id": 108, "price": 0.89, "currency": "EUR", "date": "2026-10-21", "location_id": 84, "location_osm_id": 560,
+     "product": {"product_name": "Milch"},
+     "location": {"osm_name": "Netto", "osm_brand": "Netto", "osm_address_city": "Berlin", "osm_address_postcode": "10249"}}
+  ],
+  "page": 1, "pages": 1, "size": 100, "total": 8
+}
