@@ -78,7 +78,10 @@ data class ProductGroup(
 object Grouping {
     fun group(offers: List<Offer>): List<ProductGroup> =
         offers.groupBy { ProductIdentity.key(it).id }.map { (key, list) ->
-            val representative = list.maxByOrNull { it.title.length }!!
+            // The most common title wins; on a tie the shorter, plainer one.
+            val representative = list.groupBy { it.title }.entries
+                .sortedWith(compareByDescending<Map.Entry<String, List<Offer>>> { it.value.size }.thenBy { it.key.length })
+                .first().value.first()
             ProductGroup(key = key, title = representative.title, brand = list.firstNotNullOfOrNull { it.brand }, offers = list)
         }
 }

@@ -1,0 +1,78 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests (core)
+        run: ./gradlew :core:test --stacktrace
+
+      - name: Desktop preview compiles and renders screenshots
+        run: ./gradlew :desktop:screenshots --stacktrace
+
+      - name: Android debug APK
+        run: ./gradlew -Pkiez.android=true :app:assembleDebug :app:testDebugUnitTest --stacktrace
+
+      - name: Check APK for secrets
+        run: |
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          unzip -o -q "$APK" -d /tmp/apk
+          # Typical credential formats: Google API keys, GitHub tokens, private keys, bearer tokens.
+          if grep -raoE "AIza[0-9A-Za-z_-]{35}|gh[pousr]_[0-9A-Za-z]{36}|-----BEGIN [A-Z ]*PRIVATE KEY-----|Bearer [0-9A-Za-z._-]{20,}" /tmp/apk; then
+            echo "Possible secret found in APK"; exit 1
+          fi
+          cp "$APK" kiezpreis-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kiezpreis-debug-apk
+          path: kiezpreis-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: desktop/build/screenshots
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: |
+            core/build/reports/tests
+            app/build/reports
+
+      - name: Publish rolling debug release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: debug-latest
+          name: Kiezpreis Debug (neuester Stand von main)
+          prerelease: true
+          make_latest: false
+          body: |
+            Automatisch gebaute Debug-APK vom Commit ${{ github.sha }}.
+            Nicht signiert für den Play Store; zum Installieren "Unbekannte Apps installieren" erlauben.
+          files: kiezpreis-debug.apk
